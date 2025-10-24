@@ -3,39 +3,29 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Patient;
-use App\Models\Medecin;
-use App\Models\Rendezvous;
-use App\Models\Chambre;
-use App\Models\Lit;
-use App\Models\Service;
+use App\Services\DashboardService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Contrôleur pour le tableau de bord et les statistiques
  */
 class DashboardController extends Controller
 {
+    protected DashboardService $dashboardService;
+
+    public function __construct(DashboardService $dashboardService)
+    {
+        $this->dashboardService = $dashboardService;
+    }
+
     /**
      * Get dashboard statistics
      */
     public function index()
     {
-        return response()->json([
-            'statistiques_generales' => $this->getStatistiquesGenerales(),
-            'rendezvous_aujourdhui' => $this->getRendezvousAujourdhui(),
-            'occupation_lits' => $this->getOccupationLits(),
-            'rendezvous_par_statut' => $this->getRendezvousParStatut(),
-            'patients_par_service' => $this->getPatientsParService(),
-            'activite_recente' => $this->getActiviteRecente(),
-        ]);
+        return response()->json($this->dashboardService->getDashboardData());
     }
-
-    /**
-     * Statistiques générales
-     */
-    private function getStatistiquesGenerales()
+}
     {
         return [
             'total_patients' => Patient::count(),

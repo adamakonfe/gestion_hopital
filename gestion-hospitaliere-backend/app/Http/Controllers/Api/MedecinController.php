@@ -5,15 +5,23 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Medecin;
+use App\Repositories\Contracts\MedecinRepositoryInterface;
 
 class MedecinController extends Controller
 {
+    protected MedecinRepositoryInterface $medecinRepository;
+
+    public function __construct(MedecinRepositoryInterface $medecinRepository)
+    {
+        $this->medecinRepository = $medecinRepository;
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        $medecins = Medecin::with(['user', 'service'])->get();
+        $medecins = $this->medecinRepository->with(['user', 'service'])->get();
         return response()->json($medecins);
     }
 

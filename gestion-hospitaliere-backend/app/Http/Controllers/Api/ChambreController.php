@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Chambre;
 use App\Http\Requests\StoreChambreRequest;
 use App\Http\Resources\ChambreResource;
+use App\Repositories\Contracts\ChambreRepositoryInterface;
 use Illuminate\Http\Request;
 
 /**
@@ -13,28 +14,33 @@ use Illuminate\Http\Request;
  */
 class ChambreController extends Controller
 {
+    protected ChambreRepositoryInterface $chambreRepository;
+
+    public function __construct(ChambreRepositoryInterface $chambreRepository)
+    {
+        $this->chambreRepository = $chambreRepository;
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        $query = Chambre::with(['service', 'lits']);
-
-        // Filtres
-        if ($request->has('service_id')) {
-            $query->where('service_id', $request->service_id);
+        $perPage = $request->get('per_page', 15);
+        
+        // Si des filtres sont présents, utiliser la méthode avec filtres
+        if ($request->hasAny(['service_id', 'type', 'disponible'])) {
+            $filters = $request->only(['service_id', 'type', 'disponible']);
+            if (isset($filters['disponible'])) {
+                $filters['disponible'] = $request->boolean('disponible');
+            }
+            
+            $chambres = $this->chambreRepository->getChambresWithFilters($filters);
+            return ChambreResource::collection($chambres);
         }
 
-        if ($request->has('type')) {
-            $query->where('type', $request->type);
-        }
-
-        if ($request->has('disponible')) {
-            $query->where('disponible', $request->boolean('disponible'));
-        }
-
-        $chambres = $query->paginate($request->get('per_page', 15));
-
+        // Sinon, pagination normale
+        $chambres = $this->chambreRepository->with(['service', 'lits'])->paginate($perPage);
         return ChambreResource::collection($chambres);
     }
 
@@ -43,10 +49,10 @@ class ChambreController extends Controller
      */
     public function store(StoreChambreRequest $request)
     {
-        $chambre = Chambre::create($request->validated());
-        $chambre->load(['service', 'lits']);
+        $chambre = $this->chambreRepository->create($request->validated());
+        $chambreWithRelations = $this->chambreRepository->find($chambre->id, ['service', 'lits']);
 
-        return new ChambreResource($chambre);
+        return new ChambreResource($chambreWithRelations);
     }
 
     /**
@@ -54,8 +60,8 @@ class ChambreController extends Controller
      */
     public function show(Chambre $chambre)
     {
-        $chambre->load(['service', 'lits.patient.user']);
-        return new ChambreResource($chambre);
+        $chambreWithRelations = $this->chambreRepository->find($chambre->id, ['service', 'lits.patient.user']);
+        return new ChambreResource($chambreWithRelations);
     }
 
     /**
@@ -74,10 +80,10 @@ class ChambreController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $chambre->update($validated);
-        $chambre->load(['service', 'lits']);
+        $updatedChambre = $this->chambreRepository->update($chambre->id, $validated);
+        $chambreWithRelations = $this->chambreRepository->find($updatedChambre->id, ['service', 'lits']);
 
-        return new ChambreResource($chambre);
+        return new ChambreResource($chambreWithRelations);
     }
 
     /**
@@ -86,13 +92,13 @@ class ChambreController extends Controller
     public function destroy(Chambre $chambre)
     {
         // Vérifier qu'aucun lit n'est occupé
-        if ($chambre->lits()->where('statut', 'occupe')->exists()) {
+        if (!$this->chambreRepository->canBeDeleted($chambre->id)) {
             return response()->json([
                 'message' => 'Impossible de supprimer une chambre avec des lits occupés'
             ], 422);
         }
 
-        $chambre->delete();
+        $this->chambreRepository->delete($chambre->id);
 
         return response()->json([
             'message' => 'Chambre supprimée avec succès'
@@ -104,9 +110,7 @@ class ChambreController extends Controller
      */
     public function disponibles(Request $request)
     {
-        $chambres = Chambre::disponibles()
-            ->with(['service', 'lits'])
-            ->get();
+        $chambres = $this->chambreRepository->getAvailableChambres();
 
         return ChambreResource::collection($chambres);
     }

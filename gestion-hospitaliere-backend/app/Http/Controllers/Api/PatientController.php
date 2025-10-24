@@ -6,37 +6,52 @@ use App\Http\Controllers\Controller;
 use App\Models\Patient;
 use App\Http\Requests\UpdatePatientRequest;
 use App\Http\Resources\PatientResource;
+use App\Repositories\Contracts\PatientRepositoryInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class PatientController extends Controller
 {
+    protected PatientRepositoryInterface $patientRepository;
+
+    public function __construct(PatientRepositoryInterface $patientRepository)
+    {
+        $this->patientRepository = $patientRepository;
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
         $user = auth()->user();
-        $query = Patient::with(['user', 'lit.chambre']);
+        $perPage = $request->get('per_page', 15);
 
         if ($user->role === 'Médecin') {
             // For medecin, show patients they have rendezvous with
-            $query->whereHas('rendezvous', function ($q) use ($user) {
-                $q->where('medecin_id', $user->medecin->id);
-            });
+            $patients = $this->patientRepository->getPatientsByMedecin($user->medecin->id);
+            
+            // Si recherche, filtrer les résultats
+            if ($request->has('search')) {
+                $patients = $this->patientRepository->searchByNameOrEmail($request->search);
+            }
+            
+            // Convertir en pagination manuelle si nécessaire
+            $currentPage = $request->get('page', 1);
+            $offset = ($currentPage - 1) * $perPage;
+            $paginatedItems = $patients->slice($offset, $perPage);
+            
+            return PatientResource::collection($paginatedItems);
         }
 
-        // Filtres
+        // Pour les autres rôles
         if ($request->has('search')) {
-            $search = $request->search;
-            $query->whereHas('user', function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
-            });
+            $patients = $this->patientRepository->searchByNameOrEmail($request->search);
+            return PatientResource::collection($patients);
         }
 
-        $patients = $query->paginate($request->get('per_page', 15));
-
+        // Pagination normale
+        $patients = $this->patientRepository->with(['user', 'lit.chambre'])->paginate($perPage);
         return PatientResource::collection($patients);
     }
 
@@ -55,8 +70,14 @@ class PatientController extends Controller
      */
     public function show(Patient $patient)
     {
-        $patient->load(['user', 'lit.chambre', 'rendezvous.medecin.user', 'prescriptions']);
-        return new PatientResource($patient);
+        $patientWithRelations = $this->patientRepository->find($patient->id, [
+            'user', 
+            'lit.chambre', 
+            'rendezvous.medecin.user', 
+            'prescriptions'
+        ]);
+        
+        return new PatientResource($patientWithRelations);
     }
 
     /**
@@ -78,7 +99,8 @@ class PatientController extends Controller
         if ($request->hasFile('documents')) {
             foreach ($request->file('documents') as $document) {
                 $path = $document->store('patients/documents', 'public');
-                $patient->ajouterDocument(
+                $this->patientRepository->addDocument(
+                    $patient->id,
                     $document->getClientOriginalName(),
                     $document->getClientMimeType(),
                     $path
@@ -87,10 +109,9 @@ class PatientController extends Controller
             unset($validated['documents']);
         }
 
-        $patient->update($validated);
-        $patient->load('user');
+        $updatedPatient = $this->patientRepository->update($patient->id, $validated);
         
-        return new PatientResource($patient);
+        return new PatientResource($updatedPatient);
     }
 
     /**
@@ -108,7 +129,7 @@ class PatientController extends Controller
             }
         }
 
-        $patient->delete();
+        $this->patientRepository->delete($patient->id);
         return response()->json(['message' => 'Patient supprimé avec succès']);
     }
 
@@ -146,8 +167,7 @@ class PatientController extends Controller
 
         Storage::disk('public')->delete($documents[$documentIndex]['chemin']);
 
-        unset($documents[$documentIndex]);
-        $patient->update(['documents' => array_values($documents)]);
+        $this->patientRepository->removeDocument($patient->id, $documentIndex);
 
         return response()->json(['message' => 'Document supprimé avec succès']);
     }

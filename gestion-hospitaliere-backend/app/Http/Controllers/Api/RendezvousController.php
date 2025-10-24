@@ -8,10 +8,18 @@ use App\Http\Requests\StoreRendezvousRequest;
 use App\Http\Resources\RendezvousResource;
 use App\Notifications\RendezvousCreated;
 use App\Notifications\RendezvousAssigned;
+use App\Repositories\Contracts\RendezvousRepositoryInterface;
 use Illuminate\Http\Request;
 
 class RendezvousController extends Controller
 {
+    protected RendezvousRepositoryInterface $rendezvousRepository;
+
+    public function __construct(RendezvousRepositoryInterface $rendezvousRepository)
+    {
+        $this->rendezvousRepository = $rendezvousRepository;
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -23,19 +31,15 @@ class RendezvousController extends Controller
             if (!$user->patient) {
                 return response()->json(['message' => 'Profil patient non trouvé. Veuillez contacter l\'administrateur.'], 400);
             }
-            $rendezvous = Rendezvous::where('patient_id', $user->patient->id)
-                ->with(['medecin.user', 'patient.user'])
-                ->get();
+            $rendezvous = $this->rendezvousRepository->getRendezvousByPatient($user->patient->id);
         } elseif ($user->role === 'Médecin') {
             if (!$user->medecin) {
                 return response()->json(['message' => 'Profil médecin non trouvé. Veuillez contacter l\'administrateur.'], 400);
             }
-            $rendezvous = Rendezvous::where('medecin_id', $user->medecin->id)
-                ->with(['medecin.user', 'patient.user'])
-                ->get();
+            $rendezvous = $this->rendezvousRepository->getRendezvousByMedecin($user->medecin->id);
         } else {
             // Admin can see all
-            $rendezvous = Rendezvous::with(['medecin.user', 'patient.user'])->get();
+            $rendezvous = $this->rendezvousRepository->with(['medecin.user', 'patient.user'])->get();
         }
 
         return response()->json($rendezvous);
