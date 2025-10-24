@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Connexion API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.02);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            font-size: 12px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .quick-fill {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .quick-fill button {
+            width: auto;
+            padding: 8px 15px;
+            margin: 5px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Test Connexion API</h1>
+        
+        <div class="info">
+            <strong>⚠️ Avant de tester:</strong><br>
+            1. Le backend doit être lancé: <code>php artisan serve</code><br>
+            2. URL backend: <strong>http://127.0.0.1:8000</strong>
+        </div>
+
+        <div class="quick-fill">
+            <strong>Remplissage rapide:</strong><br>
+            <button onclick="fillAdmin()">👨‍💼 Admin</button>
+            <button onclick="fillMedecin()">👨‍⚕️ Médecin</button>
+            <button onclick="fillPatient()">👤 Patient</button>
+        </div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="apiUrl">URL API Backend:</label>
+                <input type="text" id="apiUrl" value="http://127.0.0.1:8000/api" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" placeholder="admin@hospital.com" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Mot de passe:</label>
+                <input type="password" id="password" placeholder="password" required>
+            </div>
+
+            <button type="submit" id="submitBtn">🚀 Tester la Connexion</button>
+        </form>
+
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('loginForm');
+        const resultDiv = document.getElementById('result');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // Remplissage rapide
+        function fillAdmin() {
+            document.getElementById('email').value = 'admin@hospital.com';
+            document.getElementById('password').value = 'password';
+        }
+
+        function fillMedecin() {
+            document.getElementById('email').value = 'medecin@hospital.com';
+            document.getElementById('password').value = 'password';
+        }
+
+        function fillPatient() {
+            document.getElementById('email').value = 'patient@hospital.com';
+            document.getElementById('password').value = 'password';
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const apiUrl = document.getElementById('apiUrl').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Test en cours...';
+            resultDiv.style.display = 'none';
+
+            try {
+                console.log('🔵 Tentative de connexion...');
+                console.log('URL:', `${apiUrl}/login`);
+                console.log('Email:', email);
+
+                const response = await fetch(`${apiUrl}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                console.log('🔵 Statut:', response.status);
+
+                const data = await response.json();
+                console.log('🔵 Réponse:', data);
+
+                if (response.ok) {
+                    // Succès
+                    resultDiv.className = 'result success';
+                    resultDiv.style.display = 'block';
+                    resultDiv.textContent = 
+`✅ CONNEXION RÉUSSIE!
+
+Statut: ${response.status} ${response.statusText}
+
+Token: ${data.access_token || data.token || 'Non trouvé'}
+
+Utilisateur:
+${JSON.stringify(data.user || data, null, 2)}
+
+🎉 Le backend fonctionne correctement!
+Si la connexion ne marche pas dans React, le problème vient du frontend.`;
+
+                    // Stocker le token pour test
+                    if (data.access_token) {
+                        localStorage.setItem('test_token', data.access_token);
+                        console.log('✅ Token stocké dans localStorage');
+                    }
+                } else {
+                    // Erreur
+                    resultDiv.className = 'result error';
+                    resultDiv.style.display = 'block';
+                    resultDiv.textContent = 
+`❌ ÉCHEC CONNEXION
+
+Statut: ${response.status} ${response.statusText}
+
+Message: ${data.message || 'Erreur inconnue'}
+
+Détails:
+${JSON.stringify(data, null, 2)}
+
+Solutions possibles:
+1. Vérifier que le backend est lancé
+2. Vérifier les identifiants
+3. Vérifier que l'utilisateur existe en DB`;
+                }
+
+            } catch (error) {
+                console.error('❌ Erreur:', error);
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.textContent = 
+`❌ ERREUR RÉSEAU
+
+${error.message}
+
+Causes possibles:
+1. Backend non démarré
+2. URL incorrecte (vérifier: ${apiUrl})
+3. Problème CORS
+4. Firewall
+
+Solution:
+1. Lancer le backend: php artisan serve
+2. Vérifier l'URL: http://127.0.0.1:8000/api
+3. Tester dans le navigateur: http://127.0.0.1:8000/api/services`;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🚀 Tester la Connexion';
+            }
+        });
+
+        // Test au chargement de la page
+        window.addEventListener('load', () => {
+            console.log('%c🔧 TEST CONNEXION API', 'font-size: 20px; font-weight: bold; color: #667eea;');
+            console.log('📋 Ouvrez la console (F12) pour voir les détails');
+            console.log('🔵 URL API:', document.getElementById('apiUrl').value);
+            
+            // Pré-remplir avec admin
+            fillAdmin();
+        });
+    </script>
+</body>
+</html>

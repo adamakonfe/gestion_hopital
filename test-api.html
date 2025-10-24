@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test API</title>
+</head>
+<body>
+    <h1>Test de l'API</h1>
+    
+    <div>
+        <h2>Test Login</h2>
+        <button onclick="testLogin()">Tester Login</button>
+        <div id="loginResult"></div>
+    </div>
+
+    <div>
+        <h2>Test Register</h2>
+        <button onclick="testRegister()">Tester Register</button>
+        <div id="registerResult"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://127.0.0.1:8000/api';
+
+        async function testLogin() {
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'patient@example.com',
+                        password: 'password'
+                    })
+                });
+                
+                const data = await response.json();
+                document.getElementById('loginResult').innerHTML = 
+                    `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                document.getElementById('loginResult').innerHTML = 
+                    `<p style="color: red;">Erreur: ${error.message}</p>`;
+            }
+        }
+
+        async function testRegister() {
+            try {
+                const response = await fetch(`${API_URL}/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: 'Test User',
+                        email: 'test@example.com',
+                        password: 'password',
+                        password_confirmation: 'password',
+                        role: 'Patient'
+                    })
+                });
+                
+                const data = await response.json();
+                document.getElementById('registerResult').innerHTML = 
+                    `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                document.getElementById('registerResult').innerHTML = 
+                    `<p style="color: red;">Erreur: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

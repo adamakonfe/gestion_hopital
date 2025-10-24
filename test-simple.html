@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Simple</title>
+</head>
+<body>
+    <h1>Test Inscription/Connexion</h1>
+    
+    <h2>1. Test Services</h2>
+    <button onclick="testServices()">Tester Services</button>
+    <div id="services-result"></div>
+    
+    <h2>2. Test Inscription Patient</h2>
+    <button onclick="testRegister()">Tester Inscription</button>
+    <div id="register-result"></div>
+    
+    <h2>3. Test Connexion</h2>
+    <button onclick="testLogin()">Tester Connexion</button>
+    <div id="login-result"></div>
+
+    <script>
+        async function testServices() {
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/services');
+                const data = await response.json();
+                document.getElementById('services-result').innerHTML = 
+                    `<p style="color: green;">✅ Services OK: ${data.length} services trouvés</p>`;
+            } catch (error) {
+                document.getElementById('services-result').innerHTML = 
+                    `<p style="color: red;">❌ Erreur Services: ${error.message}</p>`;
+            }
+        }
+        
+        async function testRegister() {
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: 'Test User Simple',
+                        email: 'testsimple@example.com',
+                        password: 'password',
+                        password_confirmation: 'password',
+                        role: 'Patient'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('register-result').innerHTML = 
+                        `<p style="color: green;">✅ Inscription OK: ${data.user.name}</p>`;
+                } else {
+                    document.getElementById('register-result').innerHTML = 
+                        `<p style="color: red;">❌ Erreur Inscription: ${JSON.stringify(data)}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('register-result').innerHTML = 
+                    `<p style="color: red;">❌ Erreur Réseau: ${error.message}</p>`;
+            }
+        }
+        
+        async function testLogin() {
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'testsimple@example.com',
+                        password: 'password'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('login-result').innerHTML = 
+                        `<p style="color: green;">✅ Connexion OK: ${data.user.name}</p>`;
+                } else {
+                    document.getElementById('login-result').innerHTML = 
+                        `<p style="color: red;">❌ Erreur Connexion: ${JSON.stringify(data)}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('login-result').innerHTML = 
+                    `<p style="color: red;">❌ Erreur Réseau: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Frontend</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Debug Frontend - Test API</h1>
+    
+    <button onclick="testServices()">Test Services</button>
+    <button onclick="testRegisterPatient()">Test Register Patient</button>
+    <button onclick="testRegisterMedecin()">Test Register Médecin</button>
+    <button onclick="testLogin()">Test Login</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_URL = 'http://127.0.0.1:8000/api';
+        
+        function addResult(title, success, data) {
+            const div = document.createElement('div');
+            div.className = `test ${success ? 'success' : 'error'}`;
+            div.innerHTML = `
+                <h3>${title}</h3>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            document.getElementById('results').appendChild(div);
+        }
+        
+        async function testServices() {
+            try {
+                const response = await fetch(`${API_URL}/services`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                addResult('Test Services', response.ok, data);
+            } catch (error) {
+                addResult('Test Services', false, { error: error.message });
+            }
+        }
+        
+        async function testRegisterPatient() {
+            try {
+                const response = await fetch(`${API_URL}/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: 'Test Patient Frontend',
+                        email: 'patientfrontend@test.com',
+                        password: 'password',
+                        password_confirmation: 'password',
+                        role: 'Patient'
+                    })
+                });
+                
+                const data = await response.json();
+                addResult('Register Patient', response.ok, data);
+            } catch (error) {
+                addResult('Register Patient', false, { error: error.message });
+            }
+        }
+        
+        async function testRegisterMedecin() {
+            try {
+                const response = await fetch(`${API_URL}/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: 'Dr. Test Frontend',
+                        email: 'doctorfrontend@test.com',
+                        password: 'password',
+                        password_confirmation: 'password',
+                        role: 'Médecin',
+                        service_id: 1,
+                        specialite: 'Médecine générale'
+                    })
+                });
+                
+                const data = await response.json();
+                addResult('Register Médecin', response.ok, data);
+            } catch (error) {
+                addResult('Register Médecin', false, { error: error.message });
+            }
+        }
+        
+        async function testLogin() {
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'patientfrontend@test.com',
+                        password: 'password'
+                    })
+                });
+                
+                const data = await response.json();
+                addResult('Login', response.ok, data);
+            } catch (error) {
+                addResult('Login', false, { error: error.message });
+            }
+        }
+    </script>
+</body>
+</html>
