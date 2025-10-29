@@ -1,0 +1,103 @@
+name: Security & Quality Checks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Exécute les tests de sécurité tous les lundis à 2h du matin
+    - cron: '0 2 * * 1'
+
+jobs:
+  # Analyse de sécurité PHP
+  php-security:
+    name: PHP Security Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, dom, fileinfo, mysql
+
+    - name: Install Dependencies
+      working-directory: ./gestion-hospitaliere-backend
+      run: composer install --no-progress --prefer-dist
+
+    - name: Run Security Checker
+      working-directory: ./gestion-hospitaliere-backend
+      run: |
+        composer require --dev enlightn/security-checker
+        vendor/bin/security-checker security:check composer.lock
+
+    - name: Run PHPStan Static Analysis
+      working-directory: ./gestion-hospitaliere-backend
+      run: |
+        composer require --dev phpstan/phpstan
+        vendor/bin/phpstan analyse app --level=5
+
+  # Analyse de sécurité Frontend
+  frontend-security:
+    name: Frontend Security Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install Dependencies
+      working-directory: ./gestion-hospitaliere-frontend
+      run: npm ci
+
+    - name: Run npm audit
+      working-directory: ./gestion-hospitaliere-frontend
+      run: npm audit --audit-level=moderate
+
+    - name: Run ESLint Security Plugin
+      working-directory: ./gestion-hospitaliere-frontend
+      run: |
+        npm install --save-dev eslint-plugin-security
+        npx eslint . --ext .js,.jsx,.ts,.tsx
+
+  # Analyse de qualité du code
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # Scan des secrets
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Run TruffleHog
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD

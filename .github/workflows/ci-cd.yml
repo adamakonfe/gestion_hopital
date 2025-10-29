@@ -1,0 +1,213 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '18'
+  PHP_VERSION: '8.2'
+
+jobs:
+  # Tests Backend Laravel
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: hospital_test_db
+          MYSQL_USER: hospital_user
+          MYSQL_PASSWORD: password
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+      
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ env.PHP_VERSION }}
+        extensions: mbstring, dom, fileinfo, mysql, redis
+        coverage: xdebug
+
+    - name: Cache Composer dependencies
+      uses: actions/cache@v3
+      with:
+        path: gestion-hospitaliere-backend/vendor
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: ${{ runner.os }}-composer-
+
+    - name: Install Backend Dependencies
+      working-directory: ./gestion-hospitaliere-backend
+      run: composer install --no-progress --prefer-dist --optimize-autoloader
+
+    - name: Copy Environment File
+      working-directory: ./gestion-hospitaliere-backend
+      run: cp .env.example .env
+
+    - name: Generate Application Key
+      working-directory: ./gestion-hospitaliere-backend
+      run: php artisan key:generate
+
+    - name: Configure Database
+      working-directory: ./gestion-hospitaliere-backend
+      run: |
+        php artisan config:clear
+        php artisan cache:clear
+
+    - name: Run Database Migrations
+      working-directory: ./gestion-hospitaliere-backend
+      run: php artisan migrate --force
+      env:
+        DB_CONNECTION: mysql
+        DB_HOST: 127.0.0.1
+        DB_PORT: 3306
+        DB_DATABASE: hospital_test_db
+        DB_USERNAME: hospital_user
+        DB_PASSWORD: password
+
+    - name: Run Backend Tests
+      working-directory: ./gestion-hospitaliere-backend
+      run: php artisan test --coverage
+      env:
+        DB_CONNECTION: mysql
+        DB_HOST: 127.0.0.1
+        DB_PORT: 3306
+        DB_DATABASE: hospital_test_db
+        DB_USERNAME: hospital_user
+        DB_PASSWORD: password
+
+  # Tests Frontend React
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: gestion-hospitaliere-frontend/package-lock.json
+
+    - name: Install Frontend Dependencies
+      working-directory: ./gestion-hospitaliere-frontend
+      run: npm ci
+
+    - name: Run Frontend Linting
+      working-directory: ./gestion-hospitaliere-frontend
+      run: npm run lint
+
+    - name: Run Frontend Tests
+      working-directory: ./gestion-hospitaliere-frontend
+      run: npm run test -- --coverage --watchAll=false
+
+    - name: Build Frontend
+      working-directory: ./gestion-hospitaliere-frontend
+      run: npm run build
+
+  # Build et Push Docker Images
+  docker-build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and Push Backend Image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.backend
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/hospital-backend:latest
+          ${{ secrets.DOCKER_USERNAME }}/hospital-backend:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build and Push Frontend Image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.frontend
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/hospital-frontend:latest
+          ${{ secrets.DOCKER_USERNAME }}/hospital-frontend:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # Déploiement (optionnel - à adapter selon votre infrastructure)
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy to Server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.DEPLOY_HOST }}
+        username: ${{ secrets.DEPLOY_USER }}
+        key: ${{ secrets.DEPLOY_KEY }}
+        script: |
+          cd /path/to/your/app
+          docker-compose pull
+          docker-compose up -d --remove-orphans
+          docker system prune -f
+
+  # Notification
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always()
+
+    steps:
+    - name: Notify Success
+      if: needs.deploy.result == 'success'
+      run: |
+        echo "✅ Déploiement réussi!"
+        # Ici vous pouvez ajouter des notifications (Slack, Discord, etc.)
+
+    - name: Notify Failure
+      if: needs.deploy.result == 'failure'
+      run: |
+        echo "❌ Échec du déploiement!"
+        # Ici vous pouvez ajouter des notifications d'erreur
