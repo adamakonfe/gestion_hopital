@@ -1,0 +1,45 @@
+name: Minimal Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  minimal-check:
+    name: Minimal Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: List files
+      run: |
+        echo "=== Repository structure ==="
+        ls -la
+        echo ""
+        echo "=== Backend structure ==="
+        ls -la gestion-hospitaliere-backend/ || echo "Backend folder not found"
+        echo ""
+        echo "=== Frontend structure ==="
+        ls -la gestion-hospitaliere-frontend/ || echo "Frontend folder not found"
+        
+    - name: Check composer.json
+      run: |
+        if [ -f "gestion-hospitaliere-backend/composer.json" ]; then
+          echo "✅ Backend composer.json exists"
+        else
+          echo "❌ Backend composer.json missing"
+        fi
+        
+    - name: Check package.json
+      run: |
+        if [ -f "gestion-hospitaliere-frontend/package.json" ]; then
+          echo "✅ Frontend package.json exists"
+        else
+          echo "❌ Frontend package.json missing"
+        fi
+        
+    - name: Success
+      run: echo "🎉 Minimal test completed!"

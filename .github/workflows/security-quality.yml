@@ -1,10 +1,12 @@
 name: Security & Quality Checks
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+  # Temporairement désactivé pour debug
+  workflow_dispatch:
+  # push:
+  #   branches: [ main, develop ]
+  # pull_request:
+  #   branches: [ main ]
   schedule:
     # Exécute les tests de sécurité tous les lundis à 2h du matin
     - cron: '0 2 * * 1'

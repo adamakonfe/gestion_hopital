@@ -1,0 +1,102 @@
+name: Debug Pipeline
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  debug-info:
+    name: Debug Information
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Show repository structure
+      run: |
+        echo "=== Root directory ==="
+        ls -la
+        echo ""
+        echo "=== Backend directory ==="
+        if [ -d "gestion-hospitaliere-backend" ]; then
+          ls -la gestion-hospitaliere-backend/
+          echo ""
+          echo "=== Backend composer.json ==="
+          if [ -f "gestion-hospitaliere-backend/composer.json" ]; then
+            head -20 gestion-hospitaliere-backend/composer.json
+          else
+            echo "❌ composer.json not found"
+          fi
+        else
+          echo "❌ Backend directory not found"
+        fi
+        echo ""
+        echo "=== Frontend directory ==="
+        if [ -d "gestion-hospitaliere-frontend" ]; then
+          ls -la gestion-hospitaliere-frontend/
+          echo ""
+          echo "=== Frontend package.json ==="
+          if [ -f "gestion-hospitaliere-frontend/package.json" ]; then
+            head -20 gestion-hospitaliere-frontend/package.json
+          else
+            echo "❌ package.json not found"
+          fi
+        else
+          echo "❌ Frontend directory not found"
+        fi
+
+  basic-php-test:
+    name: Basic PHP Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        
+    - name: PHP Version
+      run: php --version
+      
+    - name: Check if we can access backend
+      run: |
+        cd gestion-hospitaliere-backend || exit 1
+        echo "✅ Backend directory accessible"
+        
+    - name: Try composer install (no scripts)
+      run: |
+        cd gestion-hospitaliere-backend
+        composer install --no-scripts --no-dev --ignore-platform-reqs || echo "❌ Composer failed"
+
+  basic-node-test:
+    name: Basic Node Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Node Version
+      run: |
+        node --version
+        npm --version
+        
+    - name: Check if we can access frontend
+      run: |
+        cd gestion-hospitaliere-frontend || exit 1
+        echo "✅ Frontend directory accessible"
+        
+    - name: Try npm install
+      run: |
+        cd gestion-hospitaliere-frontend
+        npm install --legacy-peer-deps || echo "❌ npm install failed"
