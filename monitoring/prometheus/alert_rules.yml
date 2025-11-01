@@ -1,0 +1,117 @@
+groups:
+  - name: hospital_system_alerts
+    rules:
+      # Alertes système
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Usage CPU élevé sur {{ $labels.instance }}"
+          description: "L'usage CPU est à {{ $value }}% sur {{ $labels.instance }}"
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Usage mémoire élevé sur {{ $labels.instance }}"
+          description: "L'usage mémoire est à {{ $value }}% sur {{ $labels.instance }}"
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Espace disque faible sur {{ $labels.instance }}"
+          description: "Il ne reste que {{ $value }}% d'espace libre sur {{ $labels.device }}"
+
+  - name: hospital_application_alerts
+    rules:
+      # Alertes application
+      - alert: BackendDown
+        expr: up{job="hospital-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend de l'hôpital indisponible"
+          description: "Le backend Laravel n'est pas accessible"
+
+      - alert: FrontendDown
+        expr: up{job="hospital-frontend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Frontend de l'hôpital indisponible"
+          description: "Le frontend React n'est pas accessible"
+
+      - alert: DatabaseDown
+        expr: up{job="mysql"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Base de données indisponible"
+          description: "La base de données MySQL n'est pas accessible"
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis indisponible"
+          description: "Le service Redis n'est pas accessible"
+
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Temps de réponse élevé"
+          description: "95% des requêtes prennent plus de 2 secondes"
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Taux d'erreur élevé"
+          description: "{{ $value }}% des requêtes retournent une erreur 5xx"
+
+  - name: hospital_business_alerts
+    rules:
+      # Alertes métier spécifiques à l'hôpital
+      - alert: HighPatientLoad
+        expr: hospital_active_patients > 500
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Charge patient élevée"
+          description: "Il y a {{ $value }} patients actifs dans le système"
+
+      - alert: LowBedAvailability
+        expr: (hospital_available_beds / hospital_total_beds) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disponibilité des lits faible"
+          description: "Seulement {{ $value }}% des lits sont disponibles"
+
+      - alert: PendingAppointments
+        expr: hospital_pending_appointments > 100
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Nombreux rendez-vous en attente"
+          description: "{{ $value }} rendez-vous sont en attente de traitement"

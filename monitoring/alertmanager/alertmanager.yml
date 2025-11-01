@@ -1,0 +1,66 @@
+global:
+  smtp_smarthost: 'hospital_mailhog:1025'
+  smtp_from: 'alertmanager@hospital.local'
+  smtp_require_tls: false
+
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'web.hook'
+  routes:
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+
+receivers:
+  - name: 'web.hook'
+    webhook_configs:
+      - url: 'http://127.0.0.1:5001/'
+
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'admin@hospital.local'
+        subject: '🚨 ALERTE CRITIQUE - Système Hospitalier'
+        body: |
+          Alerte critique détectée dans le système hospitalier !
+          
+          Détails:
+          - Alerte: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}
+          - Description: {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
+          - Heure: {{ .CommonAnnotations.timestamp }}
+          
+          Veuillez intervenir immédiatement.
+        html: |
+          <h2 style="color: red;">🚨 ALERTE CRITIQUE</h2>
+          <p><strong>Système:</strong> Gestion Hospitalière</p>
+          {{ range .Alerts }}
+          <p><strong>Alerte:</strong> {{ .Annotations.summary }}</p>
+          <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+          {{ end }}
+          <p><em>Intervention immédiate requise</em></p>
+
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'support@hospital.local'
+        subject: '⚠️ Alerte - Système Hospitalier'
+        body: |
+          Alerte détectée dans le système hospitalier.
+          
+          Détails:
+          - Alerte: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}
+          - Description: {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
+          - Heure: {{ .CommonAnnotations.timestamp }}
+          
+          Surveillance recommandée.
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'dev', 'instance']
