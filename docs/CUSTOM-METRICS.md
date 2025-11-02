@@ -14,15 +14,6 @@ Ce document décrit toutes les métriques personnalisées disponibles dans le sy
 | `hospital_patient_admissions_today` | Gauge | Admissions de patients aujourd'hui | Nombre |
 | `hospital_patient_discharges_today` | Gauge | Sorties de patients aujourd'hui | Nombre |
 
-### Lits et Chambres
-| Métrique | Type | Description | Unité |
-|----------|------|-------------|-------|
-| `hospital_total_beds` | Gauge | Nombre total de lits dans l'hôpital | Nombre |
-| `hospital_available_beds` | Gauge | Nombre de lits disponibles | Nombre |
-| `hospital_occupied_beds` | Gauge | Nombre de lits occupés | Nombre |
-| `hospital_beds_by_service{service="..."}` | Gauge | Nombre de lits par service médical | Nombre |
-| `hospital_bed_assignments` | Counter | Assignations de lits | Nombre |
-| `hospital_bed_releases` | Counter | Libérations de lits | Nombre |
 
 ### Rendez-vous
 | Métrique | Type | Description | Unité |

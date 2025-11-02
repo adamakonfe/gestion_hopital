@@ -32,32 +32,6 @@
         "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
       },
       {
-        "id": 2,
-        "title": "Lits Disponibles",
-        "type": "stat",
-        "targets": [
-          {
-            "expr": "hospital_available_beds",
-            "legendFormat": "Lits disponibles"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "color": {
-              "mode": "thresholds"
-            },
-            "thresholds": {
-              "steps": [
-                {"color": "red", "value": null},
-                {"color": "yellow", "value": 20},
-                {"color": "green", "value": 50}
-              ]
-            }
-          }
-        },
-        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
-      },
-      {
         "id": 3,
         "title": "Rendez-vous Aujourd'hui",
         "type": "stat",
@@ -67,32 +41,7 @@
             "legendFormat": "RDV aujourd'hui"
           }
         ],
-        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
-      },
-      {
-        "id": 4,
-        "title": "Taux d'Occupation des Lits",
-        "type": "gauge",
-        "targets": [
-          {
-            "expr": "(hospital_total_beds - hospital_available_beds) / hospital_total_beds * 100",
-            "legendFormat": "Taux d'occupation %"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "min": 0,
-            "max": 100,
-            "thresholds": {
-              "steps": [
-                {"color": "green", "value": null},
-                {"color": "yellow", "value": 70},
-                {"color": "red", "value": 90}
-              ]
-            }
-          }
-        },
-        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
       },
       {
         "id": 5,
