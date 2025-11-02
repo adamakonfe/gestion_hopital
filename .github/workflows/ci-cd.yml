@@ -2,10 +2,11 @@ name: CI/CD Pipeline
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+  # Temporairement désactivé - utiliser ci-simple.yml à la place
+  # push:
+  #   branches: [ main, develop ]
+  # pull_request:
+  #   branches: [ main ]
 
 env:
   NODE_VERSION: '18'
@@ -162,7 +163,7 @@ jobs:
     name: Build Docker Images
     runs-on: ubuntu-latest
     needs: [backend-tests, frontend-tests, kubernetes-validation]
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && false  # Temporairement désactivé
 
     steps:
     - name: Checkout code
@@ -206,7 +207,7 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: [docker-build]
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && false  # Temporairement désactivé
     environment: production
 
     steps:
