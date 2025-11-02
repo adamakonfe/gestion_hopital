@@ -3,7 +3,9 @@ version: '3.8'
 services:
   # Base de données MySQL
   mysql:
-    image: mysql:8.0
+    build:
+      context: .
+      dockerfile: Dockerfile.mysql
     container_name: hospital_mysql
     restart: unless-stopped
     environment:
@@ -14,7 +16,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
-      - "3306:3306"
+      - "3307:3306"
     networks:
       - hospital_network
 

@@ -15,10 +15,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // Health check endpoint
-Route::get('/health', [App\Http\Controllers\MetricsController::class, 'health']);
-
-// Metrics endpoint for Prometheus
-Route::get('/metrics', [App\Http\Controllers\MetricsController::class, 'prometheus']);
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now(),
+        'service' => 'Hospital Management API'
+    ]);
+});
 
 Route::get('/user', function (Request $request) {
     return $request->user();
