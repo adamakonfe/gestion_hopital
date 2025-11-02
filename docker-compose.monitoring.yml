@@ -1,4 +1,4 @@
-version: '3.8'
+# Docker Compose pour le système de monitoring
 
 services:
   # Prometheus - Collecte des métriques
@@ -83,35 +83,35 @@ services:
     networks:
       - monitoring_network
 
-  # MySQL Exporter - Métriques MySQL
+  # MySQL Exporter - Métriques MySQL (optionnel si MySQL disponible)
   mysql-exporter:
     image: prom/mysqld-exporter:latest
     container_name: hospital_mysql_exporter
     restart: unless-stopped
     ports:
-      - "9104:9104"
+      - "${MYSQL_EXPORTER_PORT:-9104}:9104"
     environment:
-      - DATA_SOURCE_NAME=hospital_user:password@(hospital_mysql:3306)/hospital_db
-    depends_on:
-      - mysql
+      - DATA_SOURCE_NAME=${MYSQL_EXPORTER_DATA_SOURCE_NAME:-hospital_user:password@(hospital_mysql:3306)/hospital_db}
     networks:
       - hospital_network
       - monitoring_network
+    profiles:
+      - with-app
 
-  # Redis Exporter - Métriques Redis
+  # Redis Exporter - Métriques Redis (optionnel si Redis disponible)
   redis-exporter:
     image: oliver006/redis_exporter:latest
     container_name: hospital_redis_exporter
     restart: unless-stopped
     ports:
-      - "9121:9121"
+      - "${REDIS_EXPORTER_PORT:-9121}:9121"
     environment:
-      - REDIS_ADDR=redis://hospital_redis:6379
-    depends_on:
-      - redis
+      - REDIS_ADDR=${REDIS_EXPORTER_REDIS_ADDR:-redis://hospital_redis:6379}
     networks:
       - hospital_network
       - monitoring_network
+    profiles:
+      - with-app
 
   # AlertManager - Gestion des alertes
   alertmanager:
@@ -130,20 +130,20 @@ services:
     networks:
       - monitoring_network
 
-  # Nginx Exporter - Métriques Nginx
+  # Nginx Exporter - Métriques Nginx (optionnel si Nginx disponible)
   nginx-exporter:
     image: nginx/nginx-prometheus-exporter:latest
     container_name: hospital_nginx_exporter
     restart: unless-stopped
     ports:
-      - "9113:9113"
+      - "${NGINX_EXPORTER_PORT:-9113}:9113"
     command:
       - '-nginx.scrape-uri=http://hospital_nginx:80/nginx_status'
-    depends_on:
-      - nginx
     networks:
       - hospital_network
       - monitoring_network
+    profiles:
+      - with-app
 
 volumes:
   prometheus_data:
@@ -157,4 +157,5 @@ networks:
   monitoring_network:
     driver: bridge
   hospital_network:
-    external: true
+    driver: bridge
+    external: false

@@ -1,5 +1,5 @@
 # Script PowerShell pour démarrer le système de monitoring
-# Usage: .\scripts\start-monitoring.ps1
+# Usage: .\scripts\start-monitoring-fixed.ps1
 
 param(
     [switch]$SkipMainApp = $false,
