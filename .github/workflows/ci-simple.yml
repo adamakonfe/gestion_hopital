@@ -1,4 +1,4 @@
-name: CI Simple - Tests et Validation
+name: CI/CD - Tests et Validation
 
 on:
   push:
