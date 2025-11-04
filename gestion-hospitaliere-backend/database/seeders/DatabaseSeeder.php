@@ -17,6 +17,17 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Create admin user
+        $admin = User::where('email', 'admin@hospital.com')->first();
+        if (!$admin) {
+            User::create([
+                'name' => 'Administrateur',
+                'email' => 'admin@hospital.com',
+                'password' => Hash::make('password'),
+                'role' => 'Admin',
+            ]);
+        }
+
         // Create services
         $service1 = Service::create([
             'nom' => 'Médecine générale',

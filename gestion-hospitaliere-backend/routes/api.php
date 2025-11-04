@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\FactureController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\MetricsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -20,6 +21,9 @@ Route::get('/health', function () {
         'service' => 'Hospital Management API'
     ]);
 });
+
+// Metrics endpoint for Prometheus (public access)
+Route::get('/metrics', [MetricsController::class, 'index']);
 
 Route::get('/user', function (Request $request) {
     return $request->user();

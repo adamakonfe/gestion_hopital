@@ -30,3 +30,10 @@ scrape_configs:
   - job_name: 'cadvisor'
     static_configs:
       - targets: ['cadvisor:8080']
+
+  # Laravel Backend - Métriques applicatives (utilisateurs, patients, rendez-vous)
+  - job_name: 'hospital-backend'
+    static_configs:
+      - targets: ['nginx:80']
+    metrics_path: '/api/metrics'
+    scrape_interval: 30s
