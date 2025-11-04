@@ -5,8 +5,6 @@ namespace App\Services;
 use App\Repositories\Contracts\PatientRepositoryInterface;
 use App\Repositories\Contracts\MedecinRepositoryInterface;
 use App\Repositories\Contracts\RendezvousRepositoryInterface;
-use App\Repositories\Contracts\ChambreRepositoryInterface;
-use App\Repositories\Contracts\LitRepositoryInterface;
 use Carbon\Carbon;
 
 class DashboardService
@@ -14,21 +12,15 @@ class DashboardService
     protected PatientRepositoryInterface $patientRepository;
     protected MedecinRepositoryInterface $medecinRepository;
     protected RendezvousRepositoryInterface $rendezvousRepository;
-    protected ChambreRepositoryInterface $chambreRepository;
-    protected LitRepositoryInterface $litRepository;
 
     public function __construct(
         PatientRepositoryInterface $patientRepository,
         MedecinRepositoryInterface $medecinRepository,
-        RendezvousRepositoryInterface $rendezvousRepository,
-        ChambreRepositoryInterface $chambreRepository,
-        LitRepositoryInterface $litRepository
+        RendezvousRepositoryInterface $rendezvousRepository
     ) {
         $this->patientRepository = $patientRepository;
         $this->medecinRepository = $medecinRepository;
         $this->rendezvousRepository = $rendezvousRepository;
-        $this->chambreRepository = $chambreRepository;
-        $this->litRepository = $litRepository;
     }
 
     /**
@@ -39,7 +31,6 @@ class DashboardService
         return [
             'statistiques_generales' => $this->getStatistiquesGenerales(),
             'rendezvous_aujourdhui' => $this->getRendezvousAujourdhui(),
-            'occupation_lits' => $this->getOccupationLits(),
             'rendezvous_par_statut' => $this->getRendezvousParStatut(),
             'patients_par_service' => $this->getPatientsParService(),
             'activite_recente' => $this->getActiviteRecente(),
@@ -51,15 +42,9 @@ class DashboardService
      */
     public function getStatistiquesGenerales(): array
     {
-        $litStats = $this->litRepository->countLitsByStatus();
-        
         return [
             'total_patients' => $this->patientRepository->count(),
             'total_medecins' => $this->medecinRepository->count(),
-            'total_chambres' => $this->chambreRepository->count(),
-            'total_lits' => $litStats['total'],
-            'lits_disponibles' => $litStats['disponible'],
-            'lits_occupes' => $litStats['occupe'],
             'rendezvous_aujourdhui' => $this->rendezvousRepository->getTodayRendezvous()->count(),
             'rendezvous_semaine' => $this->rendezvousRepository
                 ->where('date_heure', '>=', Carbon::now()->startOfWeek())
@@ -82,14 +67,6 @@ class DashboardService
             'annules' => $rendezvous->where('statut', 'annulé')->count(),
             'liste' => $rendezvous->take(10) // Limiter à 10 pour l'affichage
         ];
-    }
-
-    /**
-     * Occupation des lits
-     */
-    public function getOccupationLits(): array
-    {
-        return $this->litRepository->countLitsByStatus();
     }
 
     /**

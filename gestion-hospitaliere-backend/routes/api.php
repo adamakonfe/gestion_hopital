@@ -7,8 +7,6 @@ use App\Http\Controllers\Api\MedecinController;
 use App\Http\Controllers\Api\RendezvousController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\FactureController;
-use App\Http\Controllers\Api\ChambreController;
-use App\Http\Controllers\Api\LitController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\NotificationController;
 use Illuminate\Http\Request;
@@ -71,28 +69,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Factures - Admin only
     Route::middleware('role:Admin')->apiResource('factures', FactureController::class);
-
-    // Chambres - Admin only (except index and disponibles)
-    Route::get('/chambres', [ChambreController::class, 'index']);
-    Route::get('/chambres/disponibles', [ChambreController::class, 'disponibles']);
-    Route::middleware('role:Admin')->group(function () {
-        Route::post('/chambres', [ChambreController::class, 'store']);
-        Route::get('/chambres/{chambre}', [ChambreController::class, 'show']);
-        Route::put('/chambres/{chambre}', [ChambreController::class, 'update']);
-        Route::delete('/chambres/{chambre}', [ChambreController::class, 'destroy']);
-    });
-
-    // Lits - Admin and Infirmier
-    Route::get('/lits', [LitController::class, 'index']);
-    Route::get('/lits/disponibles', [LitController::class, 'disponibles']);
-    Route::middleware('role:Admin,Infirmier')->group(function () {
-        Route::post('/lits', [LitController::class, 'store']);
-        Route::get('/lits/{lit}', [LitController::class, 'show']);
-        Route::put('/lits/{lit}', [LitController::class, 'update']);
-        Route::delete('/lits/{lit}', [LitController::class, 'destroy']);
-        Route::post('/lits/{lit}/assigner', [LitController::class, 'assignerPatient']);
-        Route::post('/lits/{lit}/liberer', [LitController::class, 'liberer']);
-    });
 
     // Notifications - All authenticated users
     Route::get('/notifications', [NotificationController::class, 'index']);

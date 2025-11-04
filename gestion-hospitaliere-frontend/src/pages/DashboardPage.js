@@ -37,7 +37,6 @@ const DashboardPage = () => {
 
   const stats = dashboardData?.statistiques_generales || {};
   const rendezvousAujourdhui = dashboardData?.rendezvous_aujourdhui || [];
-  const occupationLits = dashboardData?.occupation_lits || {};
   const activiteRecente = dashboardData?.activite_recente || [];
 
   return (
@@ -50,7 +49,7 @@ const DashboardPage = () => {
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <StatCard
             title="Total Patients"
             value={stats.total_patients}
@@ -64,12 +63,6 @@ const DashboardPage = () => {
             color="bg-green-500"
           />
           <StatCard
-            title="Lits Disponibles"
-            value={`${stats.lits_disponibles}/${stats.total_lits}`}
-            icon="🛏️"
-            color="bg-purple-500"
-          />
-          <StatCard
             title="RDV Aujourd'hui"
             value={stats.rendezvous_aujourdhui}
             icon="📅"
@@ -78,40 +71,7 @@ const DashboardPage = () => {
         </div>
 
         {/* Graphiques */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Occupation des lits */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">Occupation des Lits</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: 'Occupés', value: occupationLits.occupes || 0 },
-                    { name: 'Disponibles', value: occupationLits.disponibles || 0 },
-                    { name: 'Maintenance', value: occupationLits.maintenance || 0 },
-                  ]}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {[0, 1, 2].map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="text-center mt-4">
-              <p className="text-2xl font-bold text-gray-900">
-                {occupationLits.taux_occupation}%
-              </p>
-              <p className="text-gray-600">Taux d'occupation</p>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 gap-6 mb-8">
 
           {/* Rendez-vous par jour */}
           {graphiquesData?.rendezvous_par_jour && (

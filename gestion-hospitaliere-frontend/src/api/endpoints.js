@@ -74,27 +74,6 @@ const API_ENDPOINTS = {
     DELETE: (id) => `/api/services/${id}`,
   },
 
-  // Chambres
-  CHAMBRES: {
-    LIST: '/api/chambres',
-    CREATE: '/api/chambres',
-    SHOW: (id) => `/api/chambres/${id}`,
-    UPDATE: (id) => `/api/chambres/${id}`,
-    DELETE: (id) => `/api/chambres/${id}`,
-    DISPONIBLES: '/api/chambres/disponibles',
-  },
-
-  // Lits
-  LITS: {
-    LIST: '/api/lits',
-    CREATE: '/api/lits',
-    SHOW: (id) => `/api/lits/${id}`,
-    UPDATE: (id) => `/api/lits/${id}`,
-    DELETE: (id) => `/api/lits/${id}`,
-    DISPONIBLES: '/api/lits/disponibles',
-    ASSIGNER: (id) => `/api/lits/${id}/assigner`,
-    LIBERER: (id) => `/api/lits/${id}/liberer`,
-  },
 };
 
 export default API_ENDPOINTS;

@@ -97,9 +97,10 @@ Voir [QUICK_START.md](./QUICK_START.md) pour l'installation manuelle.
 ## 📚 Documentation
 
 - **[QUICK_START.md](./QUICK_START.md)** - Guide de démarrage rapide
-- **[GUIDE_DEPLOIEMENT.md](./GUIDE_DEPLOIEMENT.md)** - Déploiement en production
+- **[GUIDE_DEPLOIEMENT.md](./GUIDE_DEPLOIEMENT.md)** - Déploiement (Docker, Kubernetes, CI/CD)
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Architecture technique détaillée
 - **[AMELIORATIONS_REALISEES.md](./AMELIORATIONS_REALISEES.md)** - Changelog complet
+- **[.github/README.md](./.github/README.md)** - Configuration CI/CD
 
 ---
 
@@ -145,9 +146,12 @@ Voir [QUICK_START.md](./QUICK_START.md) pour l'installation manuelle.
 
 ### DevOps
 - **Containerization:** Docker + Docker Compose
+- **Orchestration:** Kubernetes (Minikube)
+- **CI/CD:** GitHub Actions
 - **Web Server:** Nginx
 - **Process Manager:** PHP-FPM
 - **Email Testing:** MailHog
+- **Registry:** Docker Hub
 
 ---
 
@@ -240,6 +244,40 @@ docker-compose logs -f backend
 
 # Arrêter
 docker-compose down
+```
+
+### Kubernetes (Minikube)
+```bash
+# Démarrer Minikube
+minikube start --driver=docker --memory=4096 --cpus=2
+minikube addons enable ingress
+
+# Build et déployer
+& minikube -p minikube docker-env --shell powershell | Invoke-Expression
+docker build -f Dockerfile.backend -t gestion-hopital-backend:latest .
+docker build -f Dockerfile.frontend -t gestion-hopital-frontend:latest .
+kubectl apply -f k8s/
+
+# Migrations
+kubectl exec -n hospital deployment/backend -c php-fpm -- php artisan migrate --force
+
+# Accéder à l'app
+kubectl port-forward -n hospital service/frontend 3000:80
+# Ou: minikube tunnel (puis http://app.local)
+```
+
+### CI/CD (GitHub Actions)
+```bash
+# Configurer les secrets GitHub
+# Settings → Secrets → Actions:
+# DOCKER_USERNAME, DOCKER_PASSWORD, KUBECONFIG
+
+# Push pour déclencher le pipeline
+git push origin main
+
+# Monitoring
+gh run list
+gh run view <run-id> --log
 ```
 
 ---
