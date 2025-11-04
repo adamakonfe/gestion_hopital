@@ -1,0 +1,545 @@
+name: Enhanced CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      deploy_environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      skip_tests:
+        description: 'Skip tests'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '18'
+  PHP_VERSION: '8.2'
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Analyse de sécurité et qualité du code
+  security-analysis:
+    name: Security & Code Quality Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Setup PHP for Backend Analysis
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ env.PHP_VERSION }}
+        extensions: mbstring, dom, fileinfo, mysql
+        tools: phpstan, psalm
+
+    - name: Install Backend Dependencies
+      working-directory: ./gestion-hospitaliere-backend
+      run: composer install --no-progress --prefer-dist --optimize-autoloader --no-dev
+
+    - name: Run PHPStan Analysis
+      working-directory: ./gestion-hospitaliere-backend
+      run: |
+        vendor/bin/phpstan analyse --memory-limit=2G --error-format=github || true
+
+    - name: Setup Node.js for Frontend Analysis
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: gestion-hospitaliere-frontend/package-lock.json
+
+    - name: Install Frontend Dependencies
+      working-directory: ./gestion-hospitaliere-frontend
+      run: npm ci
+
+    - name: Run ESLint Analysis
+      working-directory: ./gestion-hospitaliere-frontend
+      run: |
+        npm run lint -- --format=@microsoft/eslint-formatter-sarif --output-file=eslint-results.sarif || true
+
+    - name: Upload ESLint results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: gestion-hospitaliere-frontend/eslint-results.sarif
+
+  # Tests Backend avec matrice de versions
+  backend-tests:
+    name: Backend Tests (PHP ${{ matrix.php-version }})
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_tests }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.1', '8.2', '8.3']
+        
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: hospital_test_db
+          MYSQL_USER: hospital_user
+          MYSQL_PASSWORD: password
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=5
+
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup PHP ${{ matrix.php-version }}
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ matrix.php-version }}
+        extensions: mbstring, dom, fileinfo, mysql, redis, gd, zip, bcmath
+        coverage: xdebug
+        tools: composer:v2
+
+    - name: Get Composer Cache Directory
+      id: composer-cache
+      working-directory: ./gestion-hospitaliere-backend
+      run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+    - name: Cache Composer dependencies
+      uses: actions/cache@v3
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: ${{ runner.os }}-composer-php${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-composer-php${{ matrix.php-version }}-
+          ${{ runner.os }}-composer-
+
+    - name: Install Backend Dependencies
+      working-directory: ./gestion-hospitaliere-backend
+      run: composer install --no-progress --prefer-dist --optimize-autoloader
+
+    - name: Setup Environment
+      working-directory: ./gestion-hospitaliere-backend
+      run: |
+        cp .env.example .env
+        php artisan key:generate
+        php artisan config:clear
+        php artisan cache:clear
+
+    - name: Run Database Migrations
+      working-directory: ./gestion-hospitaliere-backend
+      run: php artisan migrate --force --seed
+      env:
+        DB_CONNECTION: mysql
+        DB_HOST: 127.0.0.1
+        DB_PORT: 3306
+        DB_DATABASE: hospital_test_db
+        DB_USERNAME: hospital_user
+        DB_PASSWORD: password
+        REDIS_HOST: 127.0.0.1
+        REDIS_PORT: 6379
+
+    - name: Run Backend Tests with Coverage
+      working-directory: ./gestion-hospitaliere-backend
+      run: |
+        php artisan test --coverage --min=80 --coverage-clover=coverage.xml
+      env:
+        DB_CONNECTION: mysql
+        DB_HOST: 127.0.0.1
+        DB_PORT: 3306
+        DB_DATABASE: hospital_test_db
+        DB_USERNAME: hospital_user
+        DB_PASSWORD: password
+        REDIS_HOST: 127.0.0.1
+        REDIS_PORT: 6379
+
+    - name: Upload Coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./gestion-hospitaliere-backend/coverage.xml
+        flags: backend,php${{ matrix.php-version }}
+        name: backend-php${{ matrix.php-version }}
+
+  # Tests Frontend avec matrice de versions Node.js
+  frontend-tests:
+    name: Frontend Tests (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_tests }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['16', '18', '20']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: gestion-hospitaliere-frontend/package-lock.json
+
+    - name: Install Frontend Dependencies
+      working-directory: ./gestion-hospitaliere-frontend
+      run: npm ci
+
+    - name: Run Type Checking
+      working-directory: ./gestion-hospitaliere-frontend
+      run: npm run type-check || true
+
+    - name: Run Frontend Linting
+      working-directory: ./gestion-hospitaliere-frontend
+      run: npm run lint
+
+    - name: Run Frontend Tests with Coverage
+      working-directory: ./gestion-hospitaliere-frontend
+      run: npm run test -- --coverage --watchAll=false --ci
+
+    - name: Upload Coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./gestion-hospitaliere-frontend/coverage/lcov.info
+        flags: frontend,node${{ matrix.node-version }}
+        name: frontend-node${{ matrix.node-version }}
+
+    - name: Build Frontend
+      working-directory: ./gestion-hospitaliere-frontend
+      run: npm run build
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v3
+      if: matrix.node-version == '18'
+      with:
+        name: frontend-build
+        path: gestion-hospitaliere-frontend/build/
+        retention-days: 7
+
+  # Tests d'intégration E2E
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    if: ${{ !inputs.skip_tests && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Test Environment
+      run: |
+        docker-compose -f docker-compose.test.yml build
+        docker-compose -f docker-compose.test.yml up -d
+        
+    - name: Wait for Services
+      run: |
+        timeout 300 bash -c 'until curl -f http://localhost:3000/health; do sleep 5; done'
+        timeout 300 bash -c 'until curl -f http://localhost:8000/api/health; do sleep 5; done'
+
+    - name: Setup Node.js for E2E
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install Playwright
+      run: |
+        npm install -g @playwright/test
+        npx playwright install --with-deps
+
+    - name: Run E2E Tests
+      run: |
+        npx playwright test --config=e2e/playwright.config.js
+      env:
+        BASE_URL: http://localhost:3000
+        API_URL: http://localhost:8000
+
+    - name: Upload E2E Test Results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: e2e-test-results
+        path: |
+          e2e/test-results/
+          e2e/playwright-report/
+        retention-days: 7
+
+    - name: Cleanup Test Environment
+      if: always()
+      run: docker-compose -f docker-compose.test.yml down -v
+
+  # Performance et Load Testing
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: [e2e-tests]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup K6
+      run: |
+        sudo gpg -k
+        sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+        echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+        sudo apt-get update
+        sudo apt-get install k6
+
+    - name: Start Application
+      run: |
+        docker-compose up -d
+        sleep 30
+
+    - name: Run Load Tests
+      run: |
+        k6 run --out json=performance-results.json performance-tests/load-test.js || true
+
+    - name: Upload Performance Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-results
+        path: performance-results.json
+        retention-days: 30
+
+  # Build et Push Images Docker
+  docker-build:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: [security-analysis, backend-tests, frontend-tests]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      backend-image: ${{ steps.meta-backend.outputs.tags }}
+      frontend-image: ${{ steps.meta-frontend.outputs.tags }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.DOCKER_REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract Backend Metadata
+      id: meta-backend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}/backend
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and Push Backend Image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.backend
+        push: true
+        tags: ${{ steps.meta-backend.outputs.tags }}
+        labels: ${{ steps.meta-backend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+
+    - name: Extract Frontend Metadata
+      id: meta-frontend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}/frontend
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and Push Frontend Image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.frontend
+        push: true
+        tags: ${{ steps.meta-frontend.outputs.tags }}
+        labels: ${{ steps.meta-frontend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+
+  # Déploiement Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [docker-build, e2e-tests]
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && inputs.deploy_environment == 'staging')
+    environment: 
+      name: staging
+      url: https://staging.hospital-app.com
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Configure Kubernetes
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > ~/.kube/config
+
+    - name: Deploy to Staging
+      run: |
+        kubectl set image deployment/backend backend=${{ needs.docker-build.outputs.backend-image }} -n hospital-staging
+        kubectl set image deployment/frontend frontend=${{ needs.docker-build.outputs.frontend-image }} -n hospital-staging
+        kubectl rollout status deployment/backend -n hospital-staging --timeout=300s
+        kubectl rollout status deployment/frontend -n hospital-staging --timeout=300s
+
+    - name: Run Smoke Tests
+      run: |
+        kubectl run smoke-test --image=curlimages/curl --rm -i --restart=Never -- \
+          curl -f http://frontend-service.hospital-staging.svc.cluster.local/health
+
+  # Déploiement Production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [docker-build, performance-tests]
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.deploy_environment == 'production')
+    environment: 
+      name: production
+      url: https://hospital-app.com
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Configure Kubernetes
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > ~/.kube/config
+
+    - name: Blue-Green Deployment
+      run: |
+        # Créer un nouveau déploiement avec un suffixe
+        DEPLOYMENT_ID=$(date +%s)
+        kubectl patch deployment backend -n hospital-production -p '{"spec":{"template":{"spec":{"containers":[{"name":"backend","image":"${{ needs.docker-build.outputs.backend-image }}"}]}}}}'
+        kubectl patch deployment frontend -n hospital-production -p '{"spec":{"template":{"spec":{"containers":[{"name":"frontend","image":"${{ needs.docker-build.outputs.frontend-image }}"}]}}}}'
+        
+        # Attendre que le déploiement soit prêt
+        kubectl rollout status deployment/backend -n hospital-production --timeout=600s
+        kubectl rollout status deployment/frontend -n hospital-production --timeout=600s
+
+    - name: Run Production Smoke Tests
+      run: |
+        kubectl run prod-smoke-test --image=curlimages/curl --rm -i --restart=Never -- \
+          curl -f http://frontend-service.hospital-production.svc.cluster.local/health
+
+  # Notifications et rapports
+  notify-results:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+
+    steps:
+    - name: Notify Success
+      if: ${{ needs.deploy-production.result == 'success' || needs.deploy-staging.result == 'success' }}
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        channel: '#deployments'
+        text: |
+          ✅ Déploiement réussi!
+          Branch: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          Environment: ${{ needs.deploy-production.result == 'success' && 'Production' || 'Staging' }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - name: Notify Failure
+      if: ${{ needs.deploy-production.result == 'failure' || needs.deploy-staging.result == 'failure' }}
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        channel: '#deployments'
+        text: |
+          ❌ Échec du déploiement!
+          Branch: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - name: Generate Deployment Report
+      run: |
+        echo "# Deployment Report" > deployment-report.md
+        echo "**Date:** $(date)" >> deployment-report.md
+        echo "**Branch:** ${{ github.ref_name }}" >> deployment-report.md
+        echo "**Commit:** ${{ github.sha }}" >> deployment-report.md
+        echo "**Status:** ${{ job.status }}" >> deployment-report.md
+
+    - name: Upload Deployment Report
+      uses: actions/upload-artifact@v3
+      with:
+        name: deployment-report
+        path: deployment-report.md
+        retention-days: 90
