@@ -1,9 +1,9 @@
 # 🏥 Application de Gestion Hospitalière
 
-> Application web moderne et complète pour la gestion centralisée des opérations hospitalières
+> **Système de gestion hospitalière moderne et complet** - Solution full-stack pour la digitalisation complète des opérations hospitalières avec monitoring avancé et sécurité enterprise-grade.
 
-[![Laravel](https://img.shields.io/badge/Laravel-11-FF2D20?logo=laravel)](https://laravel.com)
-[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://reactjs.org)
+[![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel)](https://laravel.com)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://reactjs.org)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://www.docker.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -11,7 +11,7 @@
 
 ## 📋 Vue d'Ensemble
 
-Application full-stack de gestion hospitalière avec **Laravel 11** (backend) et **React 18** (frontend), offrant une solution complète pour:
+Application full-stack de gestion hospitalière avec **Laravel 12** (backend) et **React 19** (frontend), offrant une solution complète pour:
 
 - 👥 **Gestion des patients** - Dossiers médicaux, documents, historique
 - 👨‍⚕️ **Gestion des médecins** - Spécialités, horaires, disponibilités
@@ -24,7 +24,7 @@ Application full-stack de gestion hospitalière avec **Laravel 11** (backend) et
 
 ## ✨ Fonctionnalités Principales
 
-### Backend (Laravel 11)
+### Backend (Laravel 12)
 - ✅ API REST complète avec Laravel Sanctum
 - ✅ Form Request Validators pour validation stricte
 - ✅ API Resources pour formatage JSON cohérent
@@ -33,7 +33,7 @@ Application full-stack de gestion hospitalière avec **Laravel 11** (backend) et
 - ✅ Rate limiting et sécurité renforcée
 - ✅ Gestion des rôles (Admin, Médecin, Patient, Infirmier)
 
-### Frontend (React 18)
+### Frontend (React 19)
 - ✅ Interface moderne avec TailwindCSS
 - ✅ Hooks personnalisés (useAuth, useFetch, useMutation)
 - ✅ Dashboard avec graphiques interactifs (Recharts)
@@ -108,12 +108,12 @@ Voir [QUICK_START.md](./QUICK_START.md) pour l'installation manuelle.
 
 ```
 ┌─────────────────────────────────────────┐
-│     Frontend (React 18 + TailwindCSS)   │
+│     Frontend (React 19 + TailwindCSS)   │
 │  Components │ Hooks │ Pages │ Contexts  │
 └──────────────────┬──────────────────────┘
                    │ REST API (JSON)
 ┌──────────────────┴──────────────────────┐
-│      Backend (Laravel 11 + Sanctum)     │
+│      Backend (Laravel 12 + Sanctum)     │
 │  Controllers │ Models │ Requests │ Jobs │
 └──────────────────┬──────────────────────┘
                    │
@@ -127,7 +127,7 @@ Voir [QUICK_START.md](./QUICK_START.md) pour l'installation manuelle.
 ## 🛠️ Stack Technique
 
 ### Backend
-- **Framework:** Laravel 11
+- **Framework:** Laravel 12
 - **Auth:** Laravel Sanctum (JWT)
 - **Database:** MySQL 8.0
 - **Cache/Queue:** Redis
@@ -136,7 +136,7 @@ Voir [QUICK_START.md](./QUICK_START.md) pour l'installation manuelle.
 - **API:** RESTful avec Resources
 
 ### Frontend
-- **Framework:** React 18
+- **Framework:** React 19
 - **Routing:** React Router v6
 - **HTTP:** Axios
 - **Styling:** TailwindCSS
@@ -368,4 +368,3 @@ Ce projet est sous licence MIT. Voir [LICENSE](LICENSE) pour plus de détails.
 [Documentation](./GUIDE_DEPLOIEMENT.md) • [Architecture](./ARCHITECTURE.md) • [Quick Start](./QUICK_START.md)
 
 </div>
-"# gestion_hopital" 
