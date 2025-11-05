@@ -222,9 +222,9 @@ docker-compose exec backend php artisan key:generate
 
 | 📖 **Guide** | 🔧 **Technique** | 🚀 **Déploiement** |
 |:---:|:---:|:---:|
-| [Rapport Détaillé](./RAPPORT_DETAILLE_PROJET.md) | [Architecture](./ARCHITECTURE.md) | [Guide Déploiement](./GUIDE_DEPLOIEMENT.md) |
-| [Pipeline Summary](./PIPELINE_SUMMARY.md) | Backend: Laravel 12 | Docker + Kubernetes |
-| Frontend: React 19 | MySQL + Redis | CI/CD: GitHub Actions |
+| [Guide Utilisateur](./GUIDE_UTILISATEUR.md) | [Architecture](./ARCHITECTURE.md) | [Docker](./GUIDE_DEPLOIEMENT.md) |
+| [FAQ](./FAQ.md) | [API Documentation](./API.md) | [Kubernetes](./K8S_GUIDE.md) |
+| [Changelog](./CHANGELOG.md) | [Tests](./TESTS.md) | [CI/CD](./CICD.md) |
 
 </div>
 
