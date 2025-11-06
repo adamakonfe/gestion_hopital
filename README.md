@@ -301,7 +301,7 @@ exit
 ```
 Application Web:
 - Email: admin@hospital.com
-- Mot de passe: admin
+- Mot de passe: password
 
 Grafana:
 - Username: admin
@@ -962,7 +962,7 @@ kubectl port-forward -n hospital service/frontend 3000:80
 
 ### **Q: Comment accéder à l'application après le déploiement ?**
 **R:** Utilisez le port-forwarding :
-- Frontend : `http://localhost:3000` (admin@hospital.com / admin)
+- Frontend : `http://localhost:3000` (admin@hospital.com / password)
 - Grafana : `http://localhost:3001` (admin / admin123)
 - Prometheus : `http://localhost:9091`
 

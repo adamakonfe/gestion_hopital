@@ -68,7 +68,7 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "kubectl port-forw
 
 | Service | URL | Identifiants |
 |---------|-----|--------------|
-| **Frontend** | http://localhost:3000 | admin@hospital.com / admin |
+| **Frontend** | http://localhost:3000 | admin@hospital.com / password |
 | **Grafana** | http://localhost:3001 | admin / admin123 |
 | **Prometheus** | http://localhost:9091 | - |
 
