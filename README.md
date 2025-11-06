@@ -115,32 +115,43 @@ kubectl apply -f k8s/
 kubectl get pods -n hospital
 kubectl get services -n hospital
 
-# 6️⃣ Accès via Port-Forward (ports alternatifs)
-kubectl port-forward -n hospital service/frontend 3001:80 &
-kubectl port-forward -n hospital service/backend 8001:80 &
-kubectl port-forward -n hospital service/grafana 3002:3000 &
-kubectl port-forward -n hospital service/prometheus 9091:9090 &
+# 6️⃣ Accès via Port-Forward
+# PowerShell - Utiliser des terminaux séparés ou Start-Job
+
+# Option A: Terminaux séparés (recommandé)
+kubectl port-forward -n hospital service/frontend 3000:80     # Terminal 1
+kubectl port-forward -n hospital service/backend 8001:80      # Terminal 2  
+kubectl port-forward -n hospital service/grafana 3001:3000    # Terminal 3
+kubectl port-forward -n hospital service/prometheus 9091:9090 # Terminal 4
+
+# Option B: Jobs PowerShell
+Start-Job -ScriptBlock { kubectl port-forward -n hospital service/frontend 3000:80 }
+Start-Job -ScriptBlock { kubectl port-forward -n hospital service/backend 8001:80 }
+Start-Job -ScriptBlock { kubectl port-forward -n hospital service/grafana 3001:3000 }
+Start-Job -ScriptBlock { kubectl port-forward -n hospital service/prometheus 9091:9090 }
 ```
 
 **🌐 Accès Kubernetes :**
-- Frontend: http://localhost:3001
+- Frontend: http://localhost:3000
 - Backend API: http://localhost:8001
-- Grafana: http://localhost:3002 (`admin`/`admin`)
+- Grafana: http://localhost:3001 (`admin`/`admin`)
 - Prometheus: http://localhost:9091
 
 **🚨 Dépannage Ports :**
-```bash
-# Si ports occupés, utiliser des alternatives
-kubectl port-forward -n hospital service/frontend 4000:80 &
-kubectl port-forward -n hospital service/backend 4001:80 &
-kubectl port-forward -n hospital service/grafana 4002:3000 &
-kubectl port-forward -n hospital service/prometheus 4003:9090 &
+```powershell
+# Si port 3000 occupé, utiliser des alternatives
+kubectl port-forward -n hospital service/frontend 4000:80     # Terminal 1
+kubectl port-forward -n hospital service/backend 4001:80      # Terminal 2
+kubectl port-forward -n hospital service/grafana 4002:3000    # Terminal 3
+kubectl port-forward -n hospital service/prometheus 4003:9090 # Terminal 4
 
-# Arrêter les port-forwards
-kill %1 %2 %3 %4
+# Gestion des jobs PowerShell
+Get-Job                    # Voir les jobs actifs
+Get-Job | Stop-Job         # Arrêter tous les jobs
+Remove-Job *               # Supprimer tous les jobs
 
 # Vérifier les ports utilisés
-netstat -an | findstr "3001\|8001\|3002\|9091"
+netstat -an | findstr "3000\|8001\|3001\|9091"
 ```
 
 <div align="center">
@@ -174,12 +185,12 @@ netstat -an | findstr "3001\|8001\|3002\|9091"
 6. **📈 Monitoring** → http://localhost:3001 (`admin`/`admin`) pour Grafana
 
 **☸️ Avec Kubernetes :**
-1. **🔑 Connexion** → http://localhost:3001 avec `admin@hospital.com` / `password`
+1. **🔑 Connexion** → http://localhost:3000 avec `admin@hospital.com` / `password`
 2. **👥 Créer un patient** → Menu "Patients" → "Nouveau Patient"  
 3. **📅 Planifier un RDV** → Menu "Rendez-vous" → "Nouveau"
 4. **📧 Vérifier les emails** → http://localhost:8025 (MailHog via Docker)
 5. **📊 Voir les stats** → Dashboard avec graphiques temps réel
-6. **📈 Monitoring** → http://localhost:3002 (`admin`/`admin`) pour Grafana
+6. **📈 Monitoring** → http://localhost:3001 (`admin`/`admin`) pour Grafana
 
 <div align="center">
 
@@ -254,9 +265,9 @@ netstat -an | findstr "3001\|8001\|3002\|9091"
 
 | Service | URL | Identifiants | Description |
 |:---:|:---:|:---:|:---:|
-| **🏥 Application** | http://localhost:3001 | Voir comptes de test | Interface principale |
+| **🏥 Application** | http://localhost:3000 | Voir comptes de test | Interface principale |
 | **🔧 Backend API** | http://localhost:8001 | Token JWT requis | API REST |
-| **📊 Grafana** | http://localhost:3002 | `admin` / `admin` | Dashboards & métriques |
+| **📊 Grafana** | http://localhost:3001 | `admin` / `admin` | Dashboards & métriques |
 | **📈 Prometheus** | http://localhost:9091 | Aucun | Collecte de données |
 | **📧 MailHog** | http://localhost:8025 | Aucun | Emails via Docker |
 
