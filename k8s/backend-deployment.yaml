@@ -25,6 +25,7 @@ spec:
       initContainers:
         - name: init-code
           image: docker.io/savlong/hospital-backend:latest
+          imagePullPolicy: Never
           command: ["/bin/sh","-c"]
           args:
             - cp -a /var/www/. /var/www-shared && chown -R 1000:33 /var/www-shared;
@@ -36,12 +37,18 @@ spec:
       containers:
         - name: php-fpm
           image: docker.io/savlong/hospital-backend:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Never
           env:
             - name: APP_ENV
               value: production
             - name: APP_DEBUG
               value: "false"
+            - name: SANCTUM_STATEFUL_DOMAINS
+              value: "localhost:3000,localhost"
+            - name: SESSION_DOMAIN
+              value: "localhost"
+            - name: APP_URL
+              value: "http://localhost:8001"
             - name: APP_KEY
               valueFrom:
                 secretKeyRef:

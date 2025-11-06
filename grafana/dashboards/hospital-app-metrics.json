@@ -74,7 +74,7 @@
           "refId": "A"
         }
       ],
-      "title": "👥 Total Utilisateurs",
+      "title": "Total Utilisateurs",
       "type": "stat"
     },
     {
@@ -125,7 +125,7 @@
           "refId": "A"
         }
       ],
-      "title": "🏥 Total Patients",
+      "title": "Total Patients",
       "type": "stat"
     },
     {
@@ -176,7 +176,7 @@
           "refId": "A"
         }
       ],
-      "title": "👨‍⚕️ Total Médecins",
+      "title": "Total Medecins",
       "type": "stat"
     },
     {

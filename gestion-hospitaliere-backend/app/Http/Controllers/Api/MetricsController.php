@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Models\Patient;
 use App\Models\Medecin;
 use App\Models\Rendezvous;
+use App\Models\Prescription;
+use App\Models\Facture;
 use Illuminate\Support\Facades\DB;
 
 class MetricsController extends Controller
@@ -79,6 +81,35 @@ class MetricsController extends Controller
         $metrics[] = "# HELP hospital_appointments_pending Number of pending appointments";
         $metrics[] = "# TYPE hospital_appointments_pending gauge";
         $metrics[] = "hospital_appointments_pending $pendingAppointments";
+
+        // Total prescriptions
+        $totalPrescriptions = Prescription::count();
+        $metrics[] = "# HELP hospital_prescriptions_total Total number of prescriptions";
+        $metrics[] = "# TYPE hospital_prescriptions_total gauge";
+        $metrics[] = "hospital_prescriptions_total $totalPrescriptions";
+
+        // Total factures
+        $totalFactures = Facture::count();
+        $metrics[] = "# HELP hospital_factures_total Total number of invoices";
+        $metrics[] = "# TYPE hospital_factures_total gauge";
+        $metrics[] = "hospital_factures_total $totalFactures";
+
+        // Total lits (valeurs simulées)
+        $totalLits = 50;
+        $metrics[] = "# HELP hospital_lits_total Total number of beds";
+        $metrics[] = "# TYPE hospital_lits_total gauge";
+        $metrics[] = "hospital_lits_total $totalLits";
+
+        // Lits occupés (valeurs simulées)
+        $litsOccupes = 35;
+        $metrics[] = "# HELP hospital_lits_occupes Number of occupied beds";
+        $metrics[] = "# TYPE hospital_lits_occupes gauge";
+        $metrics[] = "hospital_lits_occupes $litsOccupes";
+
+        // Rendezvous total (alias pour compatibilité dashboard)
+        $metrics[] = "# HELP hospital_rendezvous_total Total number of appointments";
+        $metrics[] = "# TYPE hospital_rendezvous_total gauge";
+        $metrics[] = "hospital_rendezvous_total $totalRendezvous";
 
         // Database connection status
         try {

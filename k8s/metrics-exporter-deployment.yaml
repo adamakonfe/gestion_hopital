@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metrics-exporter
+  namespace: hospital
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metrics-exporter
+  template:
+    metadata:
+      labels:
+        app: metrics-exporter
+    spec:
+      containers:
+      - name: exporter
+        image: prom/pushgateway:latest
+        ports:
+        - containerPort: 9091
+          name: metrics
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metrics-exporter
+  namespace: hospital
+spec:
+  selector:
+    app: metrics-exporter
+  ports:
+  - port: 9091
+    targetPort: 9091
+    name: metrics
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hospital-metrics-generator
+  namespace: hospital
+spec:
+  schedule: "*/1 * * * *"  # Toutes les minutes
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: metrics-generator
+            image: curlimages/curl:latest
+            env:
+            - name: MYSQL_HOST
+              value: "mysql"
+            - name: MYSQL_USER
+              value: "root"
+            - name: MYSQL_PASSWORD
+              value: "password"
+            - name: MYSQL_DATABASE
+              value: "hospital_db"
+            command:
+            - /bin/sh
+            - -c
+            - |
+              # Simuler des métriques basées sur des compteurs
+              cat <<EOF | curl --data-binary @- http://metrics-exporter:9091/metrics/job/hospital
+              # TYPE hospital_users_total gauge
+              hospital_users_total 9
+              # TYPE hospital_patients_total gauge
+              hospital_patients_total 6
+              # TYPE hospital_medecins_total gauge
+              hospital_medecins_total 5
+              # TYPE hospital_rendezvous_total gauge
+              hospital_rendezvous_total 15
+              # TYPE hospital_prescriptions_total gauge
+              hospital_prescriptions_total 12
+              # TYPE hospital_factures_total gauge
+              hospital_factures_total 8
+              # TYPE hospital_lits_total gauge
+              hospital_lits_total 50
+              # TYPE hospital_lits_occupes gauge
+              hospital_lits_occupes 35
+              EOF
+          restartPolicy: OnFailure

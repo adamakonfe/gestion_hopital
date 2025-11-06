@@ -64,3 +64,11 @@ data:
           - targets: ['backend:80']
         metrics_path: '/api/metrics'
         scrape_interval: 30s
+      
+      # Metrics Exporter - Métriques hospitalières
+      - job_name: 'hospital-metrics'
+        honor_labels: true
+        static_configs:
+          - targets: ['metrics-exporter:9091']
+        metrics_path: '/metrics'
+        scrape_interval: 15s
