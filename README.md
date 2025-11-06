@@ -94,6 +94,55 @@ docker-compose exec backend php artisan migrate --seed
 # 📧 MailHog: http://localhost:8025
 ```
 
+### ☸️ Avec Kubernetes (Avancé)
+
+```bash
+# 1️⃣ Démarrer Minikube
+minikube start --driver=docker --memory=4096 --cpus=2
+minikube addons enable ingress
+
+# 2️⃣ Configurer Docker pour Minikube
+& minikube -p minikube docker-env --shell powershell | Invoke-Expression
+
+# 3️⃣ Build des images dans Minikube
+docker build -f Dockerfile.backend -t gestion-hopital-backend:latest .
+docker build -f Dockerfile.frontend -t gestion-hopital-frontend:latest .
+
+# 4️⃣ Déployer sur Kubernetes
+kubectl apply -f k8s/
+
+# 5️⃣ Vérifier le déploiement
+kubectl get pods -n hospital
+kubectl get services -n hospital
+
+# 6️⃣ Accès via Port-Forward (ports alternatifs)
+kubectl port-forward -n hospital service/frontend 3001:80 &
+kubectl port-forward -n hospital service/backend 8001:80 &
+kubectl port-forward -n hospital service/grafana 3002:3000 &
+kubectl port-forward -n hospital service/prometheus 9091:9090 &
+```
+
+**🌐 Accès Kubernetes :**
+- Frontend: http://localhost:3001
+- Backend API: http://localhost:8001
+- Grafana: http://localhost:3002 (`admin`/`admin`)
+- Prometheus: http://localhost:9091
+
+**🚨 Dépannage Ports :**
+```bash
+# Si ports occupés, utiliser des alternatives
+kubectl port-forward -n hospital service/frontend 4000:80 &
+kubectl port-forward -n hospital service/backend 4001:80 &
+kubectl port-forward -n hospital service/grafana 4002:3000 &
+kubectl port-forward -n hospital service/prometheus 4003:9090 &
+
+# Arrêter les port-forwards
+kill %1 %2 %3 %4
+
+# Vérifier les ports utilisés
+netstat -an | findstr "3001\|8001\|3002\|9091"
+```
+
 <div align="center">
 
 ### 🎭 **Comptes de Test**
@@ -116,12 +165,21 @@ docker-compose exec backend php artisan migrate --seed
 
 </div>
 
-1. **🔑 Connexion** → Utilisez `admin@hospital.com` / `password`
+**🐳 Avec Docker :**
+1. **🔑 Connexion** → http://localhost:3000 avec `admin@hospital.com` / `password`
 2. **👥 Créer un patient** → Menu "Patients" → "Nouveau Patient"  
 3. **📅 Planifier un RDV** → Menu "Rendez-vous" → "Nouveau"
 4. **📧 Vérifier les emails** → http://localhost:8025 (MailHog)
 5. **📊 Voir les stats** → Dashboard avec graphiques temps réel
 6. **📈 Monitoring** → http://localhost:3001 (`admin`/`admin`) pour Grafana
+
+**☸️ Avec Kubernetes :**
+1. **🔑 Connexion** → http://localhost:3001 avec `admin@hospital.com` / `password`
+2. **👥 Créer un patient** → Menu "Patients" → "Nouveau Patient"  
+3. **📅 Planifier un RDV** → Menu "Rendez-vous" → "Nouveau"
+4. **📧 Vérifier les emails** → http://localhost:8025 (MailHog via Docker)
+5. **📊 Voir les stats** → Dashboard avec graphiques temps réel
+6. **📈 Monitoring** → http://localhost:3002 (`admin`/`admin`) pour Grafana
 
 <div align="center">
 
@@ -176,16 +234,35 @@ docker-compose exec backend php artisan migrate --seed
 
 ### 🚀 **Accès aux Dashboards**
 
+#### 🐳 **Avec Docker Compose**
+
 <div align="center">
 
 | Service | URL | Identifiants | Description |
 |:---:|:---:|:---:|:---:|
 | **🏥 Application** | http://localhost:3000 | Voir comptes de test | Interface principale |
+| **🔧 Backend API** | http://localhost:8000 | Token JWT requis | API REST |
 | **📊 Grafana** | http://localhost:3001 | `admin` / `admin` | Dashboards & métriques |
 | **📈 Prometheus** | http://localhost:9090 | Aucun | Collecte de données |
 | **📧 MailHog** | http://localhost:8025 | Aucun | Emails de test |
 
 </div>
+
+#### ☸️ **Avec Kubernetes (Port-Forward)**
+
+<div align="center">
+
+| Service | URL | Identifiants | Description |
+|:---:|:---:|:---:|:---:|
+| **🏥 Application** | http://localhost:3001 | Voir comptes de test | Interface principale |
+| **🔧 Backend API** | http://localhost:8001 | Token JWT requis | API REST |
+| **📊 Grafana** | http://localhost:3002 | `admin` / `admin` | Dashboards & métriques |
+| **📈 Prometheus** | http://localhost:9091 | Aucun | Collecte de données |
+| **📧 MailHog** | http://localhost:8025 | Aucun | Emails via Docker |
+
+</div>
+
+> **💡 Note :** Les ports Kubernetes sont différents pour éviter les conflits avec Docker Compose
 
 ### 📈 **Configuration Grafana**
 
@@ -381,6 +458,49 @@ docker-compose exec backend php artisan migrate:fresh --seed
 ### Erreur d'auth ?
 ```bash
 docker-compose exec backend php artisan key:generate
+```
+
+### ☸️ Problèmes Kubernetes
+
+#### Port-forward échoue (permissions Windows)
+```bash
+# Utiliser des ports alternatifs
+kubectl port-forward -n hospital service/frontend 4000:80 &
+kubectl port-forward -n hospital service/backend 4001:80 &
+
+# Ou redémarrer les services réseau (admin requis)
+net stop winnat && net start winnat
+```
+
+#### Pods ne démarrent pas
+```bash
+# Vérifier l'état des pods
+kubectl get pods -n hospital
+
+# Voir les logs d'un pod problématique
+kubectl logs -n hospital <pod-name>
+
+# Redémarrer un déploiement
+kubectl rollout restart deployment/backend -n hospital
+```
+
+#### Images non trouvées
+```bash
+# Vérifier que Docker utilise Minikube
+& minikube -p minikube docker-env --shell powershell | Invoke-Expression
+
+# Re-build les images
+docker build -f Dockerfile.backend -t gestion-hopital-backend:latest .
+docker build -f Dockerfile.frontend -t gestion-hopital-frontend:latest .
+```
+
+#### Minikube problèmes
+```bash
+# Redémarrer Minikube
+minikube stop && minikube start
+
+# Réinitialiser complètement
+minikube delete && minikube start --driver=docker --memory=4096 --cpus=2
 ```
 
 </details>
