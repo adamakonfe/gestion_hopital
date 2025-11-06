@@ -101,6 +101,7 @@ docker-compose exec backend php artisan migrate --seed
 - **kubectl** configuré
 - **Docker** pour build des images
 - **4GB RAM** minimum pour Minikube
+- **Port 3000 libre** (désinstaller Grafana Windows si installé)
 
 #### **🚀 Installation Complète**
 
@@ -182,17 +183,17 @@ kubectl exec -n hospital deployment/backend -- curl -s http://redis:6379 || echo
 # Libérer tous les ports existants
 taskkill /IM kubectl.exe /F 2>$null
 
-# Port-forward avec ports propres (terminaux séparés)
-kubectl port-forward -n hospital service/frontend 5000:80     # Terminal 1
-kubectl port-forward -n hospital service/backend 5001:80      # Terminal 2
-kubectl port-forward -n hospital service/grafana 5002:3000    # Terminal 3
-kubectl port-forward -n hospital service/prometheus 5003:9090 # Terminal 4
+# Port-forward avec ports optimaux (terminaux séparés)
+kubectl port-forward -n hospital service/frontend 3000:80     # Terminal 1
+kubectl port-forward -n hospital service/backend 8001:80      # Terminal 2
+kubectl port-forward -n hospital service/grafana 3001:3000    # Terminal 3
+kubectl port-forward -n hospital service/prometheus 9091:9090 # Terminal 4
 
 # Accès via :
-# Frontend: http://localhost:5000
-# Backend API: http://localhost:5001
-# Grafana: http://localhost:5002 (admin/admin123)
-# Prometheus: http://localhost:5003
+# Frontend: http://localhost:3000 (même port que Docker !)
+# Backend API: http://localhost:8001
+# Grafana: http://localhost:3001 (admin/admin123)
+# Prometheus: http://localhost:9091
 ```
 
 ##### **Option B: Ingress (Production-like)**
@@ -383,16 +384,32 @@ graph TB
 6. **📈 Monitoring** → http://localhost:3001 (`admin`/`admin`) pour Grafana
 
 **☸️ Avec Kubernetes :**
-1. **🔑 Connexion** → http://localhost:5000 avec `admin@hospital.com` / `password`
+1. **🔑 Connexion** → http://localhost:3000 avec `admin@hospital.com` / `password`
 2. **👥 Créer un patient** → Menu "Patients" → "Nouveau Patient"  
 3. **📅 Planifier un RDV** → Menu "Rendez-vous" → "Nouveau"
 4. **📧 Vérifier les emails** → http://localhost:8025 (MailHog via Docker Compose)
 5. **📊 Voir les stats** → Dashboard avec graphiques temps réel
-6. **📈 Monitoring** → http://localhost:5002 (`admin`/`admin123`) pour Grafana
+6. **📈 Monitoring** → http://localhost:3001 (`admin`/`admin123`) pour Grafana
 
 <div align="center">
 
 **🎉 Félicitations ! Vous avez testé toutes les fonctionnalités principales !**
+
+### 🔄 **Expérience Unifiée Docker ↔ Kubernetes**
+
+Grâce aux ports alignés, vous pouvez **basculer facilement** entre les deux environnements :
+
+```powershell
+# Passer de Docker à Kubernetes
+docker-compose down                    # Arrêter Docker
+kubectl port-forward -n hospital service/frontend 3000:80  # Même URL !
+
+# Passer de Kubernetes à Docker  
+taskkill /IM kubectl.exe /F           # Arrêter port-forwards
+docker-compose up -d                  # Même URL !
+```
+
+**URLs identiques** : http://localhost:3000 dans les deux cas ! 🎯
 
 </div>
 
@@ -463,15 +480,15 @@ graph TB
 
 | Service | URL | Identifiants | Description |
 |:---:|:---:|:---:|:---:|
-| **🏥 Application** | http://localhost:5000 | Voir comptes de test | Interface principale |
-| **🔧 Backend API** | http://localhost:5001 | Token JWT requis | API REST |
-| **📊 Grafana** | http://localhost:5002 | `admin` / `admin123` | Dashboards & métriques |
-| **📈 Prometheus** | http://localhost:5003 | Aucun | Collecte de données |
+| **🏥 Application** | http://localhost:3000 | Voir comptes de test | Interface principale |
+| **🔧 Backend API** | http://localhost:8001 | Token JWT requis | API REST |
+| **📊 Grafana** | http://localhost:3001 | `admin` / `admin123` | Dashboards & métriques |
+| **📈 Prometheus** | http://localhost:9091 | Aucun | Collecte de données |
 | **📧 MailHog** | http://localhost:8025 | Aucun | Emails via Docker Compose |
 
 </div>
 
-> **💡 Note :** Ports Kubernetes optimisés (5000-5003) pour éviter tous conflits. Grafana pré-configuré avec dashboards Hospital Application Metrics.
+> **💡 Note :** Ports Kubernetes alignés avec Docker Compose (3000, 3001) après suppression de Grafana Windows. Configuration identique pour une expérience unifiée.
 
 ### 📈 **Configuration Grafana**
 
@@ -676,11 +693,11 @@ docker-compose exec backend php artisan key:generate
 # Libérer tous les ports kubectl
 taskkill /IM kubectl.exe /F 2>$null
 
-# Utiliser les nouveaux ports optimisés
-kubectl port-forward -n hospital service/frontend 5000:80     # Terminal 1
-kubectl port-forward -n hospital service/backend 5001:80      # Terminal 2
-kubectl port-forward -n hospital service/grafana 5002:3000    # Terminal 3
-kubectl port-forward -n hospital service/prometheus 5003:9090 # Terminal 4
+# Utiliser les ports optimaux (alignés avec Docker Compose)
+kubectl port-forward -n hospital service/frontend 3000:80     # Terminal 1
+kubectl port-forward -n hospital service/backend 8001:80      # Terminal 2
+kubectl port-forward -n hospital service/grafana 3001:3000    # Terminal 3
+kubectl port-forward -n hospital service/prometheus 9091:9090 # Terminal 4
 
 # Si problème persiste, redémarrer services réseau (admin requis)
 net stop winnat && net start winnat
