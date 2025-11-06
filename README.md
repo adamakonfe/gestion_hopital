@@ -121,20 +121,20 @@ kubectl get services -n hospital
 # Option A: Terminaux séparés (recommandé)
 kubectl port-forward -n hospital service/frontend 3001:80     # Terminal 1 (Frontend)
 kubectl port-forward -n hospital service/backend 8001:80      # Terminal 2 (API)
-kubectl port-forward -n hospital service/grafana 3003:3000    # Terminal 3 (Grafana)
+kubectl port-forward -n hospital service/grafana 3002:3000    # Terminal 3 (Grafana)
 kubectl port-forward -n hospital service/prometheus 9091:9090 # Terminal 4 (Prometheus)
 
 # Option B: Jobs PowerShell
 Start-Job -ScriptBlock { kubectl port-forward -n hospital service/frontend 3001:80 }
 Start-Job -ScriptBlock { kubectl port-forward -n hospital service/backend 8001:80 }
-Start-Job -ScriptBlock { kubectl port-forward -n hospital service/grafana 3003:3000 }
+Start-Job -ScriptBlock { kubectl port-forward -n hospital service/grafana 3002:3000 }
 Start-Job -ScriptBlock { kubectl port-forward -n hospital service/prometheus 9091:9090 }
 ```
 
 **🌐 Accès Kubernetes :**
 - Frontend: http://localhost:3001 (Interface principale)
 - Backend API: http://localhost:8001 (API REST)
-- Grafana: http://localhost:3003 (`admin`/`admin`) (Monitoring)
+- Grafana: http://localhost:3002 (`admin`/`admin`) (Monitoring)
 - Prometheus: http://localhost:9091 (Métriques)
 
 **🚨 Dépannage Ports :**
@@ -200,7 +200,7 @@ netstat -an | findstr "3001\|8001\|3002\|9091"
 3. **📅 Planifier un RDV** → Menu "Rendez-vous" → "Nouveau"
 4. **📧 Vérifier les emails** → http://localhost:8025 (MailHog via Docker)
 5. **📊 Voir les stats** → Dashboard avec graphiques temps réel
-6. **📈 Monitoring** → http://localhost:3003 (`admin`/`admin`) pour Grafana
+6. **📈 Monitoring** → http://localhost:3002 (`admin`/`admin`) pour Grafana
 
 <div align="center">
 
@@ -277,7 +277,7 @@ netstat -an | findstr "3001\|8001\|3002\|9091"
 |:---:|:---:|:---:|:---:|
 | **🏥 Application** | http://localhost:3001 | Voir comptes de test | Interface principale |
 | **🔧 Backend API** | http://localhost:8001 | Token JWT requis | API REST |
-| **📊 Grafana** | http://localhost:3003 | `admin` / `admin` | Dashboards & métriques |
+| **📊 Grafana** | http://localhost:3002 | `admin` / `admin` | Dashboards & métriques |
 | **📈 Prometheus** | http://localhost:9091 | Aucun | Collecte de données |
 | **📧 MailHog** | http://localhost:8025 | Aucun | Emails via Docker |
 
