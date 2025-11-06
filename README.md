@@ -94,74 +94,262 @@ docker-compose exec backend php artisan migrate --seed
 # 📧 MailHog: http://localhost:8025
 ```
 
-### ☸️ Avec Kubernetes (Avancé)
+### ☸️ Avec Kubernetes (Production-Ready)
 
-```bash
-# 1️⃣ Démarrer Minikube
-minikube start --driver=docker --memory=4096 --cpus=2
+#### **📋 Prérequis**
+- **Minikube** ou cluster Kubernetes
+- **kubectl** configuré
+- **Docker** pour build des images
+- **4GB RAM** minimum pour Minikube
+
+#### **🚀 Installation Complète**
+
+```powershell
+# 1️⃣ Démarrer Minikube avec configuration optimale
+minikube start --driver=docker --memory=4096 --cpus=2 --disk-size=20g
 minikube addons enable ingress
+minikube addons enable metrics-server
 
-# 2️⃣ Configurer Docker pour Minikube
+# 2️⃣ Configurer Docker pour Minikube (IMPORTANT)
 & minikube -p minikube docker-env --shell powershell | Invoke-Expression
 
-# 3️⃣ Build des images dans Minikube
+# 3️⃣ Build des images dans l'environnement Minikube
+# ATTENTION: Les images doivent être buildées dans le contexte Minikube
 docker build -f Dockerfile.backend -t gestion-hopital-backend:latest .
 docker build -f Dockerfile.frontend -t gestion-hopital-frontend:latest .
 
-# 4️⃣ Déployer sur Kubernetes
-kubectl apply -f k8s/
+# Vérifier que les images sont disponibles dans Minikube
+docker images | findstr gestion-hopital
 
-# 5️⃣ Vérifier le déploiement
-kubectl get pods -n hospital
-kubectl get services -n hospital
+# 4️⃣ Déploiement ordonné (important pour les dépendances)
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/secrets.yaml
+kubectl apply -f k8s/configmap-nginx-backend.yaml
+kubectl apply -f k8s/configmap-nginx-frontend.yaml
+kubectl apply -f k8s/mysql-statefulset.yaml
+kubectl apply -f k8s/mysql-service.yaml
+kubectl apply -f k8s/redis-deployment.yaml
+kubectl apply -f k8s/redis-service.yaml
 
-# 6️⃣ Accès via Port-Forward
-# PowerShell - Utiliser des terminaux séparés ou Start-Job
+# Attendre que MySQL soit prêt
+kubectl wait --for=condition=ready pod -l app=mysql -n hospital --timeout=300s
 
-# Option A: Terminaux séparés (recommandé)
-kubectl port-forward -n hospital service/frontend 3001:80     # Terminal 1 (Frontend)
-kubectl port-forward -n hospital service/backend 8001:80      # Terminal 2 (API)
-kubectl port-forward -n hospital service/grafana 3002:3000    # Terminal 3 (Grafana)
-kubectl port-forward -n hospital service/prometheus 9091:9090 # Terminal 4 (Prometheus)
+# Déployer les services applicatifs
+kubectl apply -f k8s/backend-deployment.yaml
+kubectl apply -f k8s/backend-service.yaml
+kubectl apply -f k8s/frontend-deployment.yaml
+kubectl apply -f k8s/frontend-service.yaml
 
-# Option B: Jobs PowerShell
-Start-Job -ScriptBlock { kubectl port-forward -n hospital service/frontend 3001:80 }
-Start-Job -ScriptBlock { kubectl port-forward -n hospital service/backend 8001:80 }
-Start-Job -ScriptBlock { kubectl port-forward -n hospital service/grafana 3002:3000 }
-Start-Job -ScriptBlock { kubectl port-forward -n hospital service/prometheus 9091:9090 }
+# Déployer le monitoring
+kubectl apply -f k8s/prometheus-deployment.yaml
+kubectl apply -f k8s/prometheus-service.yaml
+kubectl apply -f k8s/grafana-deployment.yaml
+kubectl apply -f k8s/grafana-service.yaml
+kubectl apply -f k8s/grafana-dashboards-configmap.yaml
+
+# Optionnel: Ingress pour accès par noms de domaine
+kubectl apply -f k8s/ingress.yaml
+
+# 5️⃣ Vérification du déploiement
+kubectl get all -n hospital
+kubectl get pods -n hospital -w  # Observer le démarrage en temps réel
 ```
 
-**🌐 Accès Kubernetes :**
-- Frontend: http://localhost:3001 (Interface principale)
-- Backend API: http://localhost:8001 (API REST)
-- Grafana: http://localhost:3002 (`admin`/`admin`) (Monitoring)
-- Prometheus: http://localhost:9091 (Métriques)
+#### **🔍 Diagnostic et Vérification**
 
-**🚨 Dépannage Ports :**
 ```powershell
-# Si port 3001 occupé, utiliser des alternatives
-kubectl port-forward -n hospital service/frontend 4000:80     # Terminal 1
-kubectl port-forward -n hospital service/backend 4001:80      # Terminal 2
-kubectl port-forward -n hospital service/grafana 4002:3000    # Terminal 3
-kubectl port-forward -n hospital service/prometheus 4003:9090 # Terminal 4
+# Vérifier l'état de tous les composants
+kubectl get pods -n hospital
+kubectl get services -n hospital
+kubectl get pvc -n hospital  # Volumes persistants
+kubectl get secrets -n hospital
 
-# Problème port 3000 bloqué sur Windows
-# 1. Vérifier qui utilise le port
-netstat -ano | findstr :3000
+# Vérifier les logs en cas de problème
+kubectl logs -n hospital deployment/backend
+kubectl logs -n hospital deployment/frontend
+kubectl logs -n hospital deployment/grafana
+kubectl logs -n hospital statefulset/mysql
 
-# 2. Si c'est Docker Compose, l'arrêter
-docker-compose down
+# Vérifier la connectivité réseau
+kubectl exec -n hospital deployment/backend -- curl -s http://mysql:3306 || echo "MySQL non accessible"
+kubectl exec -n hospital deployment/backend -- curl -s http://redis:6379 || echo "Redis non accessible"
+```
 
-# 3. Ou redémarrer les services réseau (admin requis)
-net stop winnat && net start winnat
+#### **🌐 Méthodes d'Accès**
 
-# Gestion des jobs PowerShell
-Get-Job                    # Voir les jobs actifs
-Get-Job | Stop-Job         # Arrêter tous les jobs
-Remove-Job *               # Supprimer tous les jobs
+##### **Option A: Port-Forward (Développement)**
+```powershell
+# Libérer tous les ports existants
+taskkill /IM kubectl.exe /F 2>$null
 
-# Vérifier les ports utilisés
-netstat -an | findstr "3001\|8001\|3002\|9091"
+# Port-forward avec ports propres (terminaux séparés)
+kubectl port-forward -n hospital service/frontend 5000:80     # Terminal 1
+kubectl port-forward -n hospital service/backend 5001:80      # Terminal 2
+kubectl port-forward -n hospital service/grafana 5002:3000    # Terminal 3
+kubectl port-forward -n hospital service/prometheus 5003:9090 # Terminal 4
+
+# Accès via :
+# Frontend: http://localhost:5000
+# Backend API: http://localhost:5001
+# Grafana: http://localhost:5002 (admin/admin123)
+# Prometheus: http://localhost:5003
+```
+
+##### **Option B: Ingress (Production-like)**
+```powershell
+# Obtenir l'IP de Minikube
+$MINIKUBE_IP = minikube ip
+
+# Ajouter au fichier hosts Windows (C:\Windows\System32\drivers\etc\hosts)
+# Exécuter en tant qu'administrateur :
+Add-Content -Path "C:\Windows\System32\drivers\etc\hosts" -Value "$MINIKUBE_IP app.local"
+Add-Content -Path "C:\Windows\System32\drivers\etc\hosts" -Value "$MINIKUBE_IP api.local"
+
+# Accès via noms de domaine :
+# Frontend: http://app.local
+# Backend API: http://api.local
+# Grafana: http://app.local/grafana (si configuré)
+```
+
+##### **Option C: Minikube Service (Simple)**
+```powershell
+# Ouvrir automatiquement dans le navigateur
+minikube service frontend -n hospital
+minikube service grafana -n hospital
+minikube service prometheus -n hospital
+```
+
+#### **🔧 Configuration Avancée**
+
+##### **Initialisation de la Base de Données**
+```powershell
+# Se connecter au pod backend pour initialiser la DB
+kubectl exec -n hospital deployment/backend -it -- bash
+
+# Dans le pod backend :
+php artisan migrate:fresh --seed
+php artisan key:generate
+php artisan config:cache
+php artisan route:cache
+exit
+```
+
+##### **Configuration Grafana**
+```powershell
+# Grafana est pré-configuré avec :
+# - Datasource Prometheus automatique
+# - Dashboards Hospital Application Metrics
+# - Login: admin / admin123
+
+# Pour ajouter des dashboards personnalisés :
+kubectl edit configmap grafana-dashboards -n hospital
+```
+
+##### **Monitoring et Métriques**
+```powershell
+# Vérifier que Prometheus collecte les métriques
+kubectl port-forward -n hospital service/prometheus 9090:9090
+# Aller sur http://localhost:9090/targets
+
+# Métriques disponibles :
+# - hospital_users_total
+# - hospital_patients_total  
+# - hospital_appointments_total
+# - hospital_database_up
+```
+
+#### **🚨 Dépannage Avancé**
+
+##### **Problèmes de Build d'Images**
+```powershell
+# Vérifier le contexte Docker
+docker context ls
+minikube docker-env
+
+# Re-build forcé des images
+docker build --no-cache -f Dockerfile.backend -t gestion-hopital-backend:latest .
+docker build --no-cache -f Dockerfile.frontend -t gestion-hopital-frontend:latest .
+
+# Vérifier la présence des images dans Minikube
+eval $(minikube docker-env)
+docker images | grep gestion-hopital
+```
+
+##### **Problèmes de Pods**
+```powershell
+# Pod en erreur ImagePullBackOff
+kubectl describe pod -n hospital <pod-name>
+
+# Redémarrer un déploiement
+kubectl rollout restart deployment/backend -n hospital
+kubectl rollout restart deployment/frontend -n hospital
+
+# Forcer la suppression d'un pod bloqué
+kubectl delete pod -n hospital <pod-name> --force --grace-period=0
+```
+
+##### **Problèmes de Réseau**
+```powershell
+# Tester la connectivité entre services
+kubectl exec -n hospital deployment/frontend -- nslookup backend
+kubectl exec -n hospital deployment/backend -- nslookup mysql
+
+# Vérifier les endpoints
+kubectl get endpoints -n hospital
+```
+
+##### **Problèmes de Stockage**
+```powershell
+# Vérifier les volumes persistants
+kubectl get pv
+kubectl get pvc -n hospital
+
+# Nettoyer les volumes (ATTENTION : perte de données)
+kubectl delete pvc mysql-data-mysql-0 -n hospital
+```
+
+#### **🔄 Mise à Jour et Maintenance**
+
+```powershell
+# Mise à jour des images
+docker build -f Dockerfile.backend -t gestion-hopital-backend:v2 .
+kubectl set image deployment/backend php-fpm=gestion-hopital-backend:v2 -n hospital
+
+# Sauvegarde de la base de données
+kubectl exec -n hospital statefulset/mysql -- mysqldump -u root -p hospital_db > backup.sql
+
+# Nettoyage complet
+kubectl delete namespace hospital
+minikube delete  # Supprime tout le cluster
+```
+
+#### **📊 Architecture Kubernetes**
+
+```mermaid
+graph TB
+    subgraph "Kubernetes Cluster"
+        subgraph "Namespace: hospital"
+            F[Frontend Pod<br/>Nginx + React]
+            B[Backend Pod<br/>PHP-FPM + Nginx]
+            M[MySQL StatefulSet<br/>Persistent Storage]
+            R[Redis Pod<br/>Cache]
+            G[Grafana Pod<br/>Monitoring]
+            P[Prometheus Pod<br/>Metrics]
+        end
+        
+        I[Ingress Controller]
+        
+        F --> B
+        B --> M
+        B --> R
+        P --> B
+        P --> M
+        G --> P
+        I --> F
+        I --> B
+    end
+    
+    U[User] --> I
 ```
 
 <div align="center">
@@ -195,12 +383,12 @@ netstat -an | findstr "3001\|8001\|3002\|9091"
 6. **📈 Monitoring** → http://localhost:3001 (`admin`/`admin`) pour Grafana
 
 **☸️ Avec Kubernetes :**
-1. **🔑 Connexion** → http://localhost:3001 avec `admin@hospital.com` / `password`
+1. **🔑 Connexion** → http://localhost:5000 avec `admin@hospital.com` / `password`
 2. **👥 Créer un patient** → Menu "Patients" → "Nouveau Patient"  
 3. **📅 Planifier un RDV** → Menu "Rendez-vous" → "Nouveau"
-4. **📧 Vérifier les emails** → http://localhost:8025 (MailHog via Docker)
+4. **📧 Vérifier les emails** → http://localhost:8025 (MailHog via Docker Compose)
 5. **📊 Voir les stats** → Dashboard avec graphiques temps réel
-6. **📈 Monitoring** → http://localhost:3002 (`admin`/`admin`) pour Grafana
+6. **📈 Monitoring** → http://localhost:5002 (`admin`/`admin123`) pour Grafana
 
 <div align="center">
 
@@ -275,15 +463,15 @@ netstat -an | findstr "3001\|8001\|3002\|9091"
 
 | Service | URL | Identifiants | Description |
 |:---:|:---:|:---:|:---:|
-| **🏥 Application** | http://localhost:3001 | Voir comptes de test | Interface principale |
-| **🔧 Backend API** | http://localhost:8001 | Token JWT requis | API REST |
-| **📊 Grafana** | http://localhost:3002 | `admin` / `admin` | Dashboards & métriques |
-| **📈 Prometheus** | http://localhost:9091 | Aucun | Collecte de données |
-| **📧 MailHog** | http://localhost:8025 | Aucun | Emails via Docker |
+| **🏥 Application** | http://localhost:5000 | Voir comptes de test | Interface principale |
+| **🔧 Backend API** | http://localhost:5001 | Token JWT requis | API REST |
+| **📊 Grafana** | http://localhost:5002 | `admin` / `admin123` | Dashboards & métriques |
+| **📈 Prometheus** | http://localhost:5003 | Aucun | Collecte de données |
+| **📧 MailHog** | http://localhost:8025 | Aucun | Emails via Docker Compose |
 
 </div>
 
-> **💡 Note :** Les ports Kubernetes sont différents pour éviter les conflits avec Docker Compose
+> **💡 Note :** Ports Kubernetes optimisés (5000-5003) pour éviter tous conflits. Grafana pré-configuré avec dashboards Hospital Application Metrics.
 
 ### 📈 **Configuration Grafana**
 
@@ -483,45 +671,107 @@ docker-compose exec backend php artisan key:generate
 
 ### ☸️ Problèmes Kubernetes
 
-#### Port-forward échoue (permissions Windows)
-```bash
-# Utiliser des ports alternatifs
-kubectl port-forward -n hospital service/frontend 4000:80 &
-kubectl port-forward -n hospital service/backend 4001:80 &
+#### Port-forward échoue (Windows)
+```powershell
+# Libérer tous les ports kubectl
+taskkill /IM kubectl.exe /F 2>$null
 
-# Ou redémarrer les services réseau (admin requis)
+# Utiliser les nouveaux ports optimisés
+kubectl port-forward -n hospital service/frontend 5000:80     # Terminal 1
+kubectl port-forward -n hospital service/backend 5001:80      # Terminal 2
+kubectl port-forward -n hospital service/grafana 5002:3000    # Terminal 3
+kubectl port-forward -n hospital service/prometheus 5003:9090 # Terminal 4
+
+# Si problème persiste, redémarrer services réseau (admin requis)
 net stop winnat && net start winnat
 ```
 
-#### Pods ne démarrent pas
-```bash
-# Vérifier l'état des pods
-kubectl get pods -n hospital
-
-# Voir les logs d'un pod problématique
-kubectl logs -n hospital <pod-name>
-
-# Redémarrer un déploiement
-kubectl rollout restart deployment/backend -n hospital
-```
-
-#### Images non trouvées
-```bash
-# Vérifier que Docker utilise Minikube
+#### Images non trouvées (ImagePullBackOff)
+```powershell
+# CRITIQUE: Vérifier le contexte Docker Minikube
 & minikube -p minikube docker-env --shell powershell | Invoke-Expression
 
-# Re-build les images
-docker build -f Dockerfile.backend -t gestion-hopital-backend:latest .
-docker build -f Dockerfile.frontend -t gestion-hopital-frontend:latest .
+# Vérifier que les images existent dans Minikube
+docker images | findstr gestion-hopital
+
+# Si images absentes, les re-builder dans le contexte Minikube
+docker build --no-cache -f Dockerfile.backend -t gestion-hopital-backend:latest .
+docker build --no-cache -f Dockerfile.frontend -t gestion-hopital-frontend:latest .
+
+# Forcer le redéploiement
+kubectl rollout restart deployment/backend -n hospital
+kubectl rollout restart deployment/frontend -n hospital
 ```
 
-#### Minikube problèmes
-```bash
-# Redémarrer Minikube
-minikube stop && minikube start
+#### Base de données non initialisée
+```powershell
+# Vérifier que MySQL est prêt
+kubectl get pods -n hospital -l app=mysql
 
-# Réinitialiser complètement
-minikube delete && minikube start --driver=docker --memory=4096 --cpus=2
+# Initialiser la base de données
+kubectl exec -n hospital deployment/backend -it -- php artisan migrate:fresh --seed
+
+# Si erreur de connexion MySQL
+kubectl logs -n hospital statefulset/mysql
+kubectl describe pod -n hospital -l app=mysql
+```
+
+#### Grafana sans dashboards
+```powershell
+# Vérifier la configuration Grafana
+kubectl logs -n hospital deployment/grafana
+
+# Redémarrer Grafana pour recharger les dashboards
+kubectl rollout restart deployment/grafana -n hospital
+
+# Vérifier que Prometheus est accessible
+kubectl exec -n hospital deployment/grafana -- curl -s http://prometheus:9090/api/v1/query?query=up
+```
+
+#### Pods en CrashLoopBackOff
+```powershell
+# Diagnostiquer le problème
+kubectl describe pod -n hospital <pod-name>
+kubectl logs -n hospital <pod-name> --previous
+
+# Problèmes courants et solutions :
+# 1. Backend: Vérifier les secrets et variables d'environnement
+kubectl get secrets -n hospital
+kubectl describe secret hospital-secrets -n hospital
+
+# 2. Frontend: Vérifier la configuration Nginx
+kubectl logs -n hospital deployment/frontend
+
+# 3. MySQL: Vérifier les volumes persistants
+kubectl get pvc -n hospital
+```
+
+#### Connectivité réseau entre services
+```powershell
+# Tester la résolution DNS
+kubectl exec -n hospital deployment/frontend -- nslookup backend
+kubectl exec -n hospital deployment/backend -- nslookup mysql
+
+# Tester la connectivité TCP
+kubectl exec -n hospital deployment/backend -- nc -zv mysql 3306
+kubectl exec -n hospital deployment/backend -- nc -zv redis 6379
+
+# Vérifier les services et endpoints
+kubectl get services -n hospital
+kubectl get endpoints -n hospital
+```
+
+#### Réinitialisation complète
+```powershell
+# Nettoyage complet du namespace
+kubectl delete namespace hospital
+
+# Attendre la suppression complète
+kubectl get namespaces
+
+# Redéployer depuis le début
+kubectl apply -f k8s/namespace.yaml
+# ... puis suivre la procédure de déploiement complète
 ```
 
 </details>
