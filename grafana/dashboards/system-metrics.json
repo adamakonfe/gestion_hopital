@@ -83,7 +83,7 @@
       },
       "targets": [
         {
-          "expr": "100 - (avg by (instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "expr": "hospital_cpu_usage",
           "refId": "A",
           "legendFormat": "CPU Usage"
         }
@@ -156,7 +156,7 @@
       },
       "targets": [
         {
-          "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+          "expr": "hospital_memory_usage",
           "refId": "A",
           "legendFormat": "Memory Usage"
         }
@@ -214,7 +214,7 @@
       },
       "targets": [
         {
-          "expr": "100 - (avg by (instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "expr": "hospital_cpu_usage",
           "refId": "A"
         }
       ],
@@ -271,7 +271,7 @@
       },
       "targets": [
         {
-          "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+          "expr": "hospital_memory_usage",
           "refId": "A"
         }
       ],
@@ -339,12 +339,12 @@
       },
       "targets": [
         {
-          "expr": "node_memory_MemTotal_bytes",
+          "expr": "hospital_memory_total",
           "refId": "A",
           "legendFormat": "Total RAM"
         },
         {
-          "expr": "node_memory_MemAvailable_bytes",
+          "expr": "hospital_memory_total - hospital_memory_used",
           "refId": "B",
           "legendFormat": "Available RAM"
         }
@@ -413,12 +413,12 @@
       },
       "targets": [
         {
-          "expr": "rate(node_network_receive_bytes_total[5m])",
+          "expr": "hospital_network_in",
           "refId": "A",
           "legendFormat": "{{device}} - Received"
         },
         {
-          "expr": "rate(node_network_transmit_bytes_total[5m])",
+          "expr": "hospital_network_out",
           "refId": "B",
           "legendFormat": "{{device}} - Transmitted"
         }
@@ -484,7 +484,7 @@
       },
       "targets": [
         {
-          "expr": "time() - node_boot_time_seconds",
+          "expr": "hospital_uptime",
           "refId": "A",
           "legendFormat": "System Uptime"
         }

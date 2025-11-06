@@ -15,10 +15,77 @@ spec:
     spec:
       containers:
       - name: exporter
-        image: prom/pushgateway:latest
+        image: python:3.9-slim
         ports:
-        - containerPort: 9091
+        - containerPort: 8080
           name: metrics
+        command:
+        - /bin/sh
+        - -c
+        - |
+          cat > /tmp/exporter.py <<'EOFPYTHON'
+          from http.server import HTTPServer, BaseHTTPRequestHandler
+          import random
+          import time
+
+          class MetricsHandler(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  if self.path == '/metrics':
+                      self.send_response(200)
+                      self.send_header('Content-type', 'text/plain')
+                      self.end_headers()
+                      
+                      # Générer des métriques système aléatoires
+                      cpu_usage = random.uniform(20, 80)
+                      memory_usage = random.uniform(30, 70)
+                      memory_total = 8192
+                      memory_used = int(memory_total * memory_usage / 100)
+                      network_in = random.randint(1000000, 5000000)
+                      network_out = random.randint(500000, 3000000)
+                      uptime = int(time.time() - 1730000000)
+                      
+                      metrics = f"""# HELP hospital_cpu_usage CPU usage percentage
+          # TYPE hospital_cpu_usage gauge
+          hospital_cpu_usage {cpu_usage:.2f}
+
+          # HELP hospital_memory_usage Memory usage percentage
+          # TYPE hospital_memory_usage gauge
+          hospital_memory_usage {memory_usage:.2f}
+
+          # HELP hospital_memory_total Total memory in MB
+          # TYPE hospital_memory_total gauge
+          hospital_memory_total {memory_total}
+
+          # HELP hospital_memory_used Used memory in MB
+          # TYPE hospital_memory_used gauge
+          hospital_memory_used {memory_used}
+
+          # HELP hospital_network_in Network bytes received
+          # TYPE hospital_network_in counter
+          hospital_network_in {network_in}
+
+          # HELP hospital_network_out Network bytes transmitted
+          # TYPE hospital_network_out counter
+          hospital_network_out {network_out}
+
+          # HELP hospital_uptime System uptime in seconds
+          # TYPE hospital_uptime counter
+          hospital_uptime {uptime}
+          """
+                      self.wfile.write(metrics.encode())
+                  else:
+                      self.send_response(404)
+                      self.end_headers()
+              
+              def log_message(self, format, *args):
+                  pass
+
+          if __name__ == '__main__':
+              server = HTTPServer(('0.0.0.0', 8080), MetricsHandler)
+              print('Metrics exporter running on port 8080')
+              server.serve_forever()
+          EOFPYTHON
+          python3 /tmp/exporter.py
 ---
 apiVersion: v1
 kind: Service
@@ -29,8 +96,8 @@ spec:
   selector:
     app: metrics-exporter
   ports:
-  - port: 9091
-    targetPort: 9091
+  - port: 8080
+    targetPort: 8080
     name: metrics
 ---
 apiVersion: batch/v1

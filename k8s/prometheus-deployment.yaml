@@ -65,10 +65,9 @@ data:
         metrics_path: '/api/metrics'
         scrape_interval: 30s
       
-      # Metrics Exporter - Métriques hospitalières
-      - job_name: 'hospital-metrics'
-        honor_labels: true
+      # Metrics Exporter - Métriques système
+      - job_name: 'hospital-system-metrics'
         static_configs:
-          - targets: ['metrics-exporter:9091']
+          - targets: ['metrics-exporter:8080']
         metrics_path: '/metrics'
         scrape_interval: 15s

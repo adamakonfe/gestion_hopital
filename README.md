@@ -94,16 +94,25 @@ docker-compose exec backend php artisan migrate --seed
 # 📧 MailHog: http://localhost:8025
 ```
 
-### ☸️ Avec Kubernetes (Production-Ready)
+---
 
-#### **📋 Prérequis**
-- **Minikube** ou cluster Kubernetes
+## ☸️ **Déploiement Kubernetes (Production-Ready)**
+
+### **⚠️ Notes Importantes**
+
+> **Configuration Critique** : Le frontend utilise un proxy Nginx pour router `/api/*` vers le backend. La configuration utilise le FQDN complet `backend.hospital.svc.cluster.local` pour éviter les problèmes de résolution DNS.
+
+> **Base de Données** : Après le déploiement, vous DEVEZ initialiser la base de données avec `php artisan migrate:fresh --seed --force` pour créer les utilisateurs avec des mots de passe hashés correctement.
+
+> **Port-Forwarding** : Toujours tuer les processus `kubectl.exe` existants avant de relancer les port-forwards pour éviter les conflits de ports.
+
+### **📋 Prérequis**
+- **Minikube** installé et démarré
 - **kubectl** configuré
-- **Docker** pour build des images
+- **Docker** pour construire les images
 - **4GB RAM** minimum pour Minikube
-- **Port 3000 libre** (désinstaller Grafana Windows si installé)
 
-#### **🚀 Installation Complète**
+### **🚀 Installation Complète**
 
 ```powershell
 # 1️⃣ Démarrer Minikube avec configuration optimale
@@ -111,18 +120,18 @@ minikube start --driver=docker --memory=4096 --cpus=2 --disk-size=20g
 minikube addons enable ingress
 minikube addons enable metrics-server
 
-# 2️⃣ Configurer Docker pour Minikube (IMPORTANT)
-& minikube -p minikube docker-env --shell powershell | Invoke-Expression
+# 2️⃣ Build et charger les images Docker
+docker build -f Dockerfile.backend -t savlong/hospital-backend:latest .
+docker build -f Dockerfile.frontend -t savlong/hospital-frontend:latest .
 
-# 3️⃣ Build des images dans l'environnement Minikube
-# ATTENTION: Les images doivent être buildées dans le contexte Minikube
-docker build -f Dockerfile.backend -t gestion-hopital-backend:latest .
-docker build -f Dockerfile.frontend -t gestion-hopital-frontend:latest .
+# Charger les images dans Minikube
+minikube image load savlong/hospital-backend:latest
+minikube image load savlong/hospital-frontend:latest
 
-# Vérifier que les images sont disponibles dans Minikube
-docker images | findstr gestion-hopital
+# Vérifier que les images sont chargées
+minikube image ls | Select-String "hospital"
 
-# 4️⃣ Déploiement ordonné (important pour les dépendances)
+# 3️⃣ Déploiement ordonné (important pour les dépendances)
 kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/secrets.yaml
 kubectl apply -f k8s/configmap-nginx-backend.yaml
@@ -142,18 +151,40 @@ kubectl apply -f k8s/frontend-deployment.yaml
 kubectl apply -f k8s/frontend-service.yaml
 
 # Déployer le monitoring
+kubectl apply -f k8s/metrics-exporter-deployment.yaml
 kubectl apply -f k8s/prometheus-deployment.yaml
 kubectl apply -f k8s/prometheus-service.yaml
+
+# Créer les dashboards Grafana depuis les fichiers JSON
+kubectl create configmap grafana-dashboards --from-file=grafana/dashboards/ -n hospital
+
 kubectl apply -f k8s/grafana-deployment.yaml
 kubectl apply -f k8s/grafana-service.yaml
-kubectl apply -f k8s/grafana-dashboards-configmap.yaml
 
 # Optionnel: Ingress pour accès par noms de domaine
 kubectl apply -f k8s/ingress.yaml
 
+# 4️⃣ Initialiser la base de données
+kubectl wait --for=condition=ready pod -l app=backend -n hospital --timeout=120s
+kubectl exec -n hospital deployment/backend -c php-fpm -- php artisan migrate:fresh --seed --force
+
 # 5️⃣ Vérification du déploiement
 kubectl get all -n hospital
-kubectl get pods -n hospital -w  # Observer le démarrage en temps réel
+kubectl get pods -n hospital
+
+# 6️⃣ Configurer le port-forwarding
+# IMPORTANT: Tuer les processus kubectl existants avant de relancer
+taskkill /IM kubectl.exe /F 2>$null
+
+# Lancer les port-forwards (dans des terminaux séparés ou en arrière-plan)
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "kubectl port-forward -n hospital service/frontend 3000:80"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "kubectl port-forward -n hospital service/grafana 3001:3000"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "kubectl port-forward -n hospital service/prometheus 9091:9090"
+
+# Accès aux services:
+# Frontend: http://localhost:3000
+# Grafana: http://localhost:3001 (admin/admin123)
+# Prometheus: http://localhost:9091
 ```
 
 #### **🔍 Diagnostic et Vérification**
@@ -220,6 +251,37 @@ minikube service grafana -n hospital
 minikube service prometheus -n hospital
 ```
 
+---
+
+### **⚡ Commandes Rapides**
+
+```powershell
+# 🚀 Démarrage rapide (après installation initiale)
+minikube start
+kubectl port-forward -n hospital service/frontend 3000:80 &
+kubectl port-forward -n hospital service/backend 8001:80 &
+kubectl port-forward -n hospital service/grafana 3001:3000 &
+
+# 🔄 Redémarrer tous les services
+kubectl rollout restart deployment -n hospital
+
+# 📊 Voir l'état de tous les pods
+kubectl get pods -n hospital
+
+# 🔍 Voir les logs en temps réel
+kubectl logs -f -n hospital deployment/backend
+kubectl logs -f -n hospital deployment/frontend
+
+# 🗑️ Nettoyer et redémarrer
+kubectl delete namespace hospital
+kubectl apply -f k8s/
+
+# 🛑 Arrêter Minikube
+minikube stop
+```
+
+---
+
 #### **🔧 Configuration Avancée**
 
 ##### **Initialisation de la Base de Données**
@@ -235,45 +297,123 @@ php artisan route:cache
 exit
 ```
 
-##### **Configuration Grafana**
-```powershell
-# Grafana est pré-configuré avec :
-# - Datasource Prometheus automatique
-# - Dashboards Hospital Application Metrics
-# - Login: admin / admin123
-
-# Pour ajouter des dashboards personnalisés :
-kubectl edit configmap grafana-dashboards -n hospital
+##### **🔐 Identifiants par Défaut**
 ```
+Application Web:
+- Email: admin@hospital.com
+- Mot de passe: admin
+
+Grafana:
+- Username: admin
+- Password: admin123
+
+MySQL (depuis le pod):
+- User: root
+- Password: password
+- Database: hospital_db
+```
+
+##### **📊 Dashboards Grafana**
+Grafana est pré-configuré avec **3 dashboards** :
+
+1. **Hospital Application Metrics** ✅
+   - Total Utilisateurs
+   - Total Patients
+   - Total Médecins
+   
+2. **Hospital Overview** ✅
+   - Rendez-vous (total, par statut, aujourd'hui)
+   - Prescriptions
+   - Factures
+   - Taux d'occupation des lits
+
+3. **System Metrics** ✅
+   - CPU Usage (%)
+   - Memory Usage (%)
+   - Memory Details
+   - Network Traffic
+   - System Uptime
 
 ##### **Monitoring et Métriques**
 ```powershell
 # Vérifier que Prometheus collecte les métriques
-kubectl port-forward -n hospital service/prometheus 9090:9090
-# Aller sur http://localhost:9090/targets
+kubectl port-forward -n hospital service/prometheus 9091:9090
+# Aller sur http://localhost:9091/targets
 
-# Métriques disponibles :
+# Métriques disponibles depuis le backend Laravel:
 # - hospital_users_total
 # - hospital_patients_total  
-# - hospital_appointments_total
+# - hospital_medecins_total
+# - hospital_rendezvous_total
+# - hospital_prescriptions_total
+# - hospital_factures_total
+# - hospital_lits_total
+# - hospital_lits_occupes
 # - hospital_database_up
+
+# Métriques système depuis metrics-exporter:
+# - hospital_cpu_usage
+# - hospital_memory_usage
+# - hospital_memory_total
+# - hospital_memory_used
+# - hospital_network_in
+# - hospital_network_out
+# - hospital_uptime
 ```
 
 #### **🚨 Dépannage Avancé**
 
+##### **🔴 Problème: Erreur 405 ou 502 lors de la connexion**
+```powershell
+# Cause: Le proxy Nginx du frontend ne fonctionne pas correctement
+# Solution: Vérifier et recréer la configuration Nginx
+
+# 1. Vérifier la configuration actuelle
+kubectl exec -n hospital deployment/frontend -- cat /etc/nginx/conf.d/default.conf
+
+# 2. Si le proxy_pass n'est pas présent, recréer le ConfigMap
+kubectl delete configmap frontend-nginx-conf -n hospital
+kubectl apply -f k8s/configmap-nginx-frontend.yaml
+
+# 3. Redémarrer le frontend
+kubectl delete pod -n hospital -l app=frontend
+kubectl wait --for=condition=ready pod -l app=frontend -n hospital --timeout=60s
+
+# 4. Tester le proxy
+kubectl exec -n hospital deployment/frontend -- curl -s http://localhost/api/health
+```
+
+##### **🔴 Problème: Base de données vide ou mots de passe incorrects**
+```powershell
+# Réinitialiser complètement la base de données
+kubectl exec -n hospital deployment/backend -c php-fpm -- php artisan migrate:fresh --seed --force
+
+# Vérifier les logs si erreur
+kubectl logs -n hospital deployment/backend -c php-fpm --tail=50
+```
+
+##### **🔴 Problème: Port-forward échoue (port déjà utilisé)**
+```powershell
+# Tuer tous les processus kubectl
+taskkill /IM kubectl.exe /F
+
+# Attendre 2 secondes puis relancer
+Start-Sleep -Seconds 2
+kubectl port-forward -n hospital service/frontend 3000:80
+```
+
 ##### **Problèmes de Build d'Images**
 ```powershell
-# Vérifier le contexte Docker
-docker context ls
-minikube docker-env
-
 # Re-build forcé des images
-docker build --no-cache -f Dockerfile.backend -t gestion-hopital-backend:latest .
-docker build --no-cache -f Dockerfile.frontend -t gestion-hopital-frontend:latest .
+docker build --no-cache -f Dockerfile.backend -t savlong/hospital-backend:latest .
+docker build --no-cache -f Dockerfile.frontend -t savlong/hospital-frontend:latest .
 
-# Vérifier la présence des images dans Minikube
-eval $(minikube docker-env)
-docker images | grep gestion-hopital
+# Charger dans Minikube
+minikube image load savlong/hospital-backend:latest
+minikube image load savlong/hospital-frontend:latest
+
+# Vérifier
+minikube image ls | Select-String "hospital"
 ```
 
 ##### **Problèmes de Pods**
@@ -792,6 +932,46 @@ kubectl apply -f k8s/namespace.yaml
 ```
 
 </details>
+
+---
+
+## ❓ **FAQ - Questions Fréquentes**
+
+### **Q: Pourquoi j'obtiens une erreur 405 ou 502 lors de la connexion ?**
+**R:** Le proxy Nginx du frontend n'est pas correctement configuré. Suivez ces étapes :
+1. Vérifiez que le ConfigMap `frontend-nginx-conf` contient bien le `proxy_pass`
+2. Recréez le ConfigMap : `kubectl delete configmap frontend-nginx-conf -n hospital && kubectl apply -f k8s/configmap-nginx-frontend.yaml`
+3. Redémarrez le frontend : `kubectl delete pod -n hospital -l app=frontend`
+
+### **Q: Le login échoue avec "This password does not use the Bcrypt algorithm" ?**
+**R:** La base de données n'a pas été initialisée correctement. Exécutez :
+```powershell
+kubectl exec -n hospital deployment/backend -c php-fpm -- php artisan migrate:fresh --seed --force
+```
+
+### **Q: Le port-forward échoue avec "port already in use" ?**
+**R:** Un processus kubectl est déjà en cours. Tuez-le avec :
+```powershell
+taskkill /IM kubectl.exe /F
+Start-Sleep -Seconds 2
+kubectl port-forward -n hospital service/frontend 3000:80
+```
+
+### **Q: Les dashboards Grafana affichent "No data" ?**
+**R:** Attendez 30 secondes que Prometheus collecte les premières métriques, puis rafraîchissez la page. Si le problème persiste, vérifiez que le backend et le metrics-exporter sont en cours d'exécution.
+
+### **Q: Comment accéder à l'application après le déploiement ?**
+**R:** Utilisez le port-forwarding :
+- Frontend : `http://localhost:3000` (admin@hospital.com / admin)
+- Grafana : `http://localhost:3001` (admin / admin123)
+- Prometheus : `http://localhost:9091`
+
+### **Q: Les images Docker ne se mettent pas à jour dans Minikube ?**
+**R:** Utilisez `imagePullPolicy: Never` dans les déploiements et rechargez l'image :
+```powershell
+minikube image load savlong/hospital-backend:latest
+kubectl delete pod -n hospital -l app=backend
+```
 
 ---
 

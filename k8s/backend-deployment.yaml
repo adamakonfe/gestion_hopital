@@ -42,13 +42,15 @@ spec:
             - name: APP_ENV
               value: production
             - name: APP_DEBUG
-              value: "false"
+              value: "true"
             - name: SANCTUM_STATEFUL_DOMAINS
-              value: "localhost:3000,localhost"
+              value: "localhost:3000,localhost,backend,frontend"
             - name: SESSION_DOMAIN
               value: "localhost"
             - name: APP_URL
-              value: "http://localhost:8001"
+              value: "http://backend"
+            - name: APP_FORCE_HTTPS
+              value: "false"
             - name: APP_KEY
               valueFrom:
                 secretKeyRef:

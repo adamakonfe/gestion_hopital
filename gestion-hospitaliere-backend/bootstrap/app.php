@@ -28,6 +28,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/*',
         ]);
 
+        // Désactiver TrustHosts pour Kubernetes
+        $middleware->trustHosts(at: []);
+
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
         ]);
